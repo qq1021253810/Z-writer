@@ -61,6 +61,17 @@ logs/
 # Chroma data
 chroma_data/
 
-# Agent memory (optional, can be tracked if needed)
-# AGENT_MEMORY.md
-# AGENT_EVOLVE_LOG.md
+# LLM API keys (sensitive, never commit)
+backend/src/main/resources/application-llm.yml
+rust-cli/config.local.toml
+rust-cli/.dashscope_key
+
+# Trae IDE specs (local only)
+.trae/
+
+# Docs directory (local only)
+docs/
+
+# Agent memory files (local only, never commit)
+AGENT_MEMORY.md
+AGENT_EVOLVE_LOG.md
