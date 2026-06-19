@@ -1,0 +1,13 @@
+- [x] shadcn/ui 必要依赖已安装（tailwindcss-animate、class-variance-authority、clsx、tailwind-merge、lucide-react）
+- [x] components.json 配置文件已创建，配置正确
+- [x] src/lib/utils.ts 已创建，cn() 函数可正常使用
+- [x] tailwind.config.js 已更新，包含 animate 插件和主题扩展
+- [x] index.css 已更新，包含 shadcn/ui CSS 变量主题系统
+- [x] 现有 primary 色板已迁移到 CSS 变量系统，视觉一致
+- [x] 核心组件已添加到 src/components/ui/ 目录（Button、Card、Tabs、Dialog、Textarea、Badge、Tooltip、ScrollArea、Skeleton、Toast）
+- [x] NovelList 页面已迁移，使用 shadcn/ui 组件
+- [x] CreateNovel 页面已迁移，使用 shadcn/ui 组件
+- [x] NovelEditor 页面已迁移，使用 shadcn/ui 组件
+- [x] 前端编译通过，无 TypeScript 错误
+- [x] 所有页面功能正常，交互无异常
+- [x] 现有功能（续写、卡文修复、创作工具）全部正常

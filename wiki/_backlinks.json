@@ -1,0 +1,50 @@
+{
+  "entities/multi-agent-architecture": {
+    "outgoing": ["workflow-system", "external-tool-plugins", "vector-knowledge-service", "context-service-layer", "data-model"],
+    "incoming": ["external-tool-plugins", "workflow-system", "vector-knowledge-service", "context-service-layer", "dialogue-guide-system"]
+  },
+  "entities/external-tool-plugins": {
+    "outgoing": ["multi-agent-architecture", "workflow-system", "setting-sync-service"],
+    "incoming": ["multi-agent-architecture", "workflow-system"]
+  },
+  "entities/vector-knowledge-service": {
+    "outgoing": ["multi-agent-architecture", "spring-ai-upgrade", "common-issues", "pending-optimizations", "context-service-layer", "setting-sync-service", "infrastructure-stack"],
+    "incoming": ["multi-agent-architecture", "spring-ai-upgrade", "common-issues", "pending-optimizations", "context-service-layer", "setting-sync-service", "workflow-system"]
+  },
+  "entities/data-model": {
+    "outgoing": ["multi-agent-architecture", "vector-knowledge-service", "workflow-system", "infrastructure-stack"],
+    "incoming": ["context-service-layer", "setting-sync-service", "workflow-system", "infrastructure-stack"]
+  },
+  "entities/context-service-layer": {
+    "outgoing": ["multi-agent-architecture", "vector-knowledge-service", "workflow-system", "data-model"],
+    "incoming": ["multi-agent-architecture", "dialogue-guide-system", "workflow-system"]
+  },
+  "entities/setting-sync-service": {
+    "outgoing": ["vector-knowledge-service", "data-model", "external-tool-plugins"],
+    "incoming": ["vector-knowledge-service"]
+  },
+  "entities/dialogue-guide-system": {
+    "outgoing": ["workflow-system", "multi-agent-architecture", "context-service-layer"],
+    "incoming": []
+  },
+  "decisions/spring-ai-upgrade": {
+    "outgoing": ["vector-knowledge-service", "common-issues"],
+    "incoming": ["vector-knowledge-service", "common-issues"]
+  },
+  "concepts/workflow-system": {
+    "outgoing": ["multi-agent-architecture", "external-tool-plugins", "vector-knowledge-service", "context-service-layer", "data-model"],
+    "incoming": ["multi-agent-architecture", "external-tool-plugins", "pending-optimizations", "context-service-layer", "dialogue-guide-system", "data-model"]
+  },
+  "concepts/infrastructure-stack": {
+    "outgoing": ["vector-knowledge-service", "data-model", "common-issues"],
+    "incoming": ["data-model"]
+  },
+  "lessons/common-issues": {
+    "outgoing": ["spring-ai-upgrade", "vector-knowledge-service", "infrastructure-stack"],
+    "incoming": ["vector-knowledge-service", "spring-ai-upgrade", "pending-optimizations", "infrastructure-stack"]
+  },
+  "issues/pending-optimizations": {
+    "outgoing": ["vector-knowledge-service", "workflow-system", "common-issues"],
+    "incoming": ["vector-knowledge-service", "common-issues"]
+  }
+}

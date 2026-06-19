@@ -1,0 +1,56 @@
+server:
+  port: 8080
+
+spring:
+  application:
+    name: zwriter-backend
+
+  datasource:
+    url: jdbc:postgresql://localhost:5432/zwriter
+    username: zwriter
+    password: zwriter123
+    driver-class-name: org.postgresql.Driver
+
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    show-sql: false
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+        format_sql: true
+
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+    baseline-on-migrate: true
+
+  data:
+    redis:
+      host: localhost
+      port: 6379
+
+  ai:
+    ollama:
+      base-url: http://localhost:11434
+      chat:
+        model: qwen3:1.7b
+      embedding:
+        model: nomic-embed-text
+    vectorstore:
+      chroma:
+        host: localhost
+        port: 8000
+        collection-name: zwriter_novels
+        initialize-schema: true
+
+# LLM Config
+llm:
+  mock-enabled: false
+  max-tokens: 4096
+  temperature: 0.8
+
+logging:
+  level:
+    com.zwriter: DEBUG
+    org.springframework.ai: DEBUG

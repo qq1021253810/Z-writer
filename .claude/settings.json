@@ -1,0 +1,42 @@
+{
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Write|Edit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node",
+            "args": [
+              ".codewiki/hooks/pre-wiki-context.mjs",
+              "--host",
+              "claude-code",
+              "--event",
+              "PreToolUse"
+            ],
+            "timeout": 10
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Write|Edit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node",
+            "args": [
+              ".codewiki/hooks/post-verify.mjs",
+              "--host",
+              "claude-code",
+              "--event",
+              "PostToolUse"
+            ],
+            "timeout": 10
+          }
+        ]
+      }
+    ]
+  }
+}

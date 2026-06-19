@@ -1,0 +1,10 @@
+- [x] CodeWiki CLI 已安装且可在项目中执行
+- [x] 项目中生成了 wiki/ 目录结构（raw/、entities/、decisions/、lessons/、issues/、sources/）
+- [x] 项目中生成了 .codewiki/ 配置目录（config.yml、templates/、hooks/）
+- [x] 全局技能目录中存在 codewiki 技能，包含有效的 SKILL.md
+- [x] SKILL.md 的 frontmatter 包含 name 和 description 字段
+- [x] SKILL.md 的 description 明确说明了技能功能和触发条件
+- [x] AGENT_MEMORY.md 已复制到 wiki/raw/ 目录
+- [x] 执行 codewiki-ingest 后生成了结构化的 wiki 页面（7个页面）
+- [x] wiki/index.md 和 wiki/log.md 已生成并更新
+- [x] 全局技能可在 Trae IDE 对话中被正确触发
