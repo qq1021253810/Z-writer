@@ -3,6 +3,11 @@
 use std::path::{Path, PathBuf};
 use crate::error::{AppError, Result};
 
+/// 空世界观占位符
+pub const EMPTY_WORLDVIEW: &str = "# 世界观设定\n\n待补充\n";
+/// 空大纲占位符
+pub const EMPTY_OUTLINE: &str = "# 大纲\n\n待补充\n";
+
 /// 小说工作区
 pub struct Workspace {
     root: PathBuf,
@@ -45,10 +50,10 @@ impl Workspace {
         std::fs::write(root.join("novel.md"), &novel_content)?;
 
         // 创建 worldview.md
-        std::fs::write(root.join("worldview.md"), "# 世界观设定\n\n待补充\n")?;
+        std::fs::write(root.join("worldview.md"), EMPTY_WORLDVIEW)?;
 
         // 创建 outline.md
-        std::fs::write(root.join("outline.md"), "# 大纲\n\n待补充\n")?;
+        std::fs::write(root.join("outline.md"), EMPTY_OUTLINE)?;
 
         // 创建 memory_tree.json
         let memory_tree = serde_json::json!({
@@ -58,7 +63,7 @@ impl Workspace {
         });
         std::fs::write(
             root.join("memory_tree.json"),
-            serde_json::to_string_pretty(&memory_tree).unwrap(),
+            serde_json::to_string_pretty(&memory_tree).expect("memory_tree.json 序列化失败"),
         )?;
 
         // 创建 vector_store 目录
@@ -174,6 +179,58 @@ impl Workspace {
             }
         }
         Ok(chapters)
+    }
+
+    /// 构建完整小说上下文（供 Agent 和 CLI 使用）
+    ///
+    /// 收集：小说信息 → 世界观 → 大纲 → 角色 → 最近章节
+    /// 返回格式化的上下文字符串
+    pub fn build_full_context(&self, recent_chapters_count: usize) -> Result<String> {
+        let mut context = String::new();
+
+        // 小说信息
+        let novel_info = self.novel_info()?;
+        context.push_str("【小说信息】\n");
+        context.push_str(&novel_info);
+        context.push_str("\n\n");
+
+        // 世界观
+        let worldview = self.worldview()?;
+        if !worldview.is_empty() && worldview != EMPTY_WORLDVIEW {
+            context.push_str("【世界观】\n");
+            context.push_str(&worldview);
+            context.push_str("\n\n");
+        }
+
+        // 大纲
+        let outline = self.outline()?;
+        if !outline.is_empty() && outline != EMPTY_OUTLINE {
+            context.push_str("【大纲】\n");
+            context.push_str(&outline);
+            context.push_str("\n\n");
+        }
+
+        // 角色设定
+        let characters = self.characters()?;
+        if !characters.is_empty() {
+            context.push_str("【角色设定】\n");
+            for char_info in &characters {
+                context.push_str(char_info);
+                context.push('\n');
+            }
+            context.push('\n');
+        }
+
+        // 最近章节
+        let recent = self.recent_chapters(recent_chapters_count)?;
+        if !recent.is_empty() {
+            context.push_str("【最近章节】\n");
+            for (num, content) in &recent {
+                context.push_str(&format!("第 {} 章:\n{}\n\n", num, content));
+            }
+        }
+
+        Ok(context)
     }
 
     /// 列出所有工作区

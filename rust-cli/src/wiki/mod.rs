@@ -57,9 +57,9 @@ impl HealthReport {
 pub enum EntityType {
     Character,   // 角色
     Location,    // 地点
-    Item,        // 物品/法宝
-    Skill,       // 技能/功法
-    Organization,// 组织/门派
+    Item,        // 物品/资源
+    Skill,       // 技能/方案
+    Organization,// 组织/公司
     Concept,     // 概念/设定
 }
 
@@ -75,13 +75,13 @@ impl EntityType {
         }
     }
 
-    pub fn from_str(s: &str) -> Option<Self> {
+    pub fn parse(s: &str) -> Option<Self> {
         match s.to_lowercase().as_str() {
             "character" | "角色" | "人物" => Some(EntityType::Character),
             "location" | "地点" | "地方" => Some(EntityType::Location),
-            "item" | "物品" | "法宝" | "道具" => Some(EntityType::Item),
-            "skill" | "技能" | "功法" | "法术" => Some(EntityType::Skill),
-            "organization" | "组织" | "门派" | "宗门" => Some(EntityType::Organization),
+            "item" | "物品" | "资源" | "资产" => Some(EntityType::Item),
+            "skill" | "技能" | "方案" | "策略" => Some(EntityType::Skill),
+            "organization" | "组织" | "公司" | "集团" | "机构" => Some(EntityType::Organization),
             "concept" | "概念" | "设定" => Some(EntityType::Concept),
             _ => None,
         }
@@ -284,21 +284,21 @@ impl Wiki {
             ("人物:", EntityType::Character),
             ("地点:", EntityType::Location),
             ("地方:", EntityType::Location),
-            ("功法:", EntityType::Skill),
+            ("方案:", EntityType::Skill),
             ("技能:", EntityType::Skill),
-            ("法宝:", EntityType::Item),
-            ("门派:", EntityType::Organization),
-            ("宗门:", EntityType::Organization),
+            ("资源:", EntityType::Item),
+            ("公司:", EntityType::Organization),
+            ("集团:", EntityType::Organization),
             ("组织:", EntityType::Organization),
         ];
 
         for line in text.lines() {
             let line = line.trim();
             for (prefix, entity_type) in &patterns {
-                if line.starts_with(prefix) {
-                    let rest = line[prefix.len()..].trim();
+                if let Some(rest) = line.strip_prefix(prefix) {
+                    let rest = rest.trim();
                     // 提取名称（取冒号或逗号前的部分）
-                    let name = rest.split(|c: char| c == '，' || c == ',' || c == '：' || c == ':')
+                    let name = rest.split(['，', ',', '：', ':'])
                         .next()
                         .unwrap_or("")
                         .trim()
@@ -308,7 +308,7 @@ impl Wiki {
                         seen_names.insert(name.clone());
 
                         // 提取描述（冒号后的部分）
-                        let description = if let Some(pos) = rest.find(|c: char| c == '：' || c == ':') {
+                        let description = if let Some(pos) = rest.find(['：', ':']) {
                             rest[pos + 3..].trim().to_string() // 跳过 "： " 或 ": "
                         } else {
                             String::new()

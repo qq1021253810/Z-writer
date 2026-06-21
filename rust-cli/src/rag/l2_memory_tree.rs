@@ -35,7 +35,7 @@ pub struct ChapterSummary {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CharacterChange {
     pub character_name: String,
-    pub change_type: String, // 位置、情感、关系、物品、修为等
+    pub change_type: String, // 位置、情感、关系、物品、能力层级等
     pub before: String,
     pub after: String,
 }
@@ -76,7 +76,7 @@ impl MemoryTree {
         }
         let content = std::fs::read_to_string(path)?;
         let tree: MemoryTree = serde_json::from_str(&content)
-            .map_err(|e| AppError::Json(e))?;
+            .map_err(AppError::Json)?;
         Ok(tree)
     }
 

@@ -36,6 +36,9 @@ pub enum AppError {
 
     #[error("Git 错误: {0}")]
     Git(String),
+
+    #[error("上下文错误: {0}")]
+    Context(String),
 }
 
 pub type Result<T> = std::result::Result<T, AppError>;

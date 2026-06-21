@@ -6,6 +6,43 @@ use reqwest::Client;
 use serde::{Deserialize, Serialize};
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::Arc;
+use std::time::Duration;
+use tokio::time::sleep;
+
+/// LLM 请求最大重试次数
+const MAX_RETRIES: u32 = 3;
+/// 基础重试间隔（秒）
+const BASE_RETRY_DELAY_SECS: u64 = 1;
+
+/// 带指数退避的重试包装器
+async fn with_retry<T, F, Fut>(operation_name: &str, mut f: F) -> Result<T>
+where
+    F: FnMut() -> Fut,
+    Fut: std::future::Future<Output = Result<T>>,
+{
+    let mut last_error = None;
+    for attempt in 0..=MAX_RETRIES {
+        match f().await {
+            Ok(result) => return Ok(result),
+            Err(e) => {
+                last_error = Some(e);
+                if attempt < MAX_RETRIES {
+                    let delay = BASE_RETRY_DELAY_SECS * 2u64.pow(attempt);
+                    tracing::warn!(
+                        "[LLM] {} 失败 (尝试 {}/{}): {}，{}秒后重试...",
+                        operation_name,
+                        attempt + 1,
+                        MAX_RETRIES + 1,
+                        last_error.as_ref().expect("last_error 刚被赋值为 Some"),
+                        delay
+                    );
+                    sleep(Duration::from_secs(delay)).await;
+                }
+            }
+        }
+    }
+    Err(last_error.expect("重试循环结束，last_error 必定为 Some"))
+}
 
 /// Token 使用统计
 #[derive(Debug, Clone, Default)]
@@ -153,6 +190,7 @@ struct OpenAIUsage {
 
 /// Ollama 原生格式的聊天响应（用于获取 token 统计）
 #[derive(Debug, Deserialize)]
+#[allow(dead_code)]
 struct OllamaNativeChatResponse {
     #[serde(default)]
     message: Option<ChatMessage>,
@@ -219,21 +257,55 @@ impl LlmClient {
         }
     }
 
-    /// 聊天调用（返回内容和 token 统计）
+    /// 聊天调用（带重试，返回内容和 token 统计）
     pub async fn chat(&self, messages: Vec<ChatMessage>) -> Result<ChatResult> {
-        let result = match &self.inner {
-            LlmClientInner::DashScope(c) => c.chat(messages).await,
-            LlmClientInner::Ollama(c) => c.chat(messages).await,
-        }?;
-        self.tracker.record(&result.usage);
-        Ok(result)
+        let inner = self.inner.clone();
+        let tracker = self.tracker.clone();
+        with_retry("chat", move || {
+            let inner = inner.clone();
+            let messages = messages.clone();
+            async move {
+                let result = match &inner {
+                    LlmClientInner::DashScope(c) => c.chat(messages).await,
+                    LlmClientInner::Ollama(c) => c.chat(messages).await,
+                }?;
+                Ok(result)
+            }
+        })
+        .await
+        .inspect(|result| {
+            tracker.record(&result.usage);
+        })
     }
 
     pub async fn embed(&self, text: &str) -> Result<Vec<f32>> {
+        let inner = self.inner.clone();
+        let text = text.to_string();
+        with_retry("embed", move || {
+            let inner = inner.clone();
+            let text = text.clone();
+            async move {
+                match &inner {
+                    LlmClientInner::DashScope(c) => c.embed(&text).await,
+                    LlmClientInner::Ollama(c) => c.embed(&text).await,
+                }
+            }
+        })
+        .await
+    }
+
+    /// 流式聊天调用（实时输出，不支持重试）
+    pub async fn chat_stream<F>(&self, messages: Vec<ChatMessage>, mut on_chunk: F) -> Result<ChatResult>
+    where
+        F: FnMut(&str),
+    {
         match &self.inner {
-            LlmClientInner::DashScope(c) => c.embed(text).await,
-            LlmClientInner::Ollama(c) => c.embed(text).await,
+            LlmClientInner::DashScope(c) => c.chat_stream(messages, &mut on_chunk).await,
+            LlmClientInner::Ollama(c) => c.chat_stream(messages, &mut on_chunk).await,
         }
+        .inspect(|result| {
+            self.tracker.record(&result.usage);
+        })
     }
 }
 
@@ -279,7 +351,7 @@ impl OllamaClient {
             })
             .unwrap_or_else(|| {
                 // 如果 OpenAI 兼容接口没有返回 usage，估算 token 数
-                estimate_tokens(&content)
+                estimate_token_usage(&content)
             });
 
         Ok(ChatResult { content, usage })
@@ -309,6 +381,60 @@ impl OllamaClient {
             .map_err(|e| AppError::Llm(format!("解析响应失败: {}", e)))?;
 
         Ok(embed_response.embedding)
+    }
+
+    /// 流式聊天调用
+    pub async fn chat_stream<F>(&self, messages: Vec<ChatMessage>, on_chunk: &mut F) -> Result<ChatResult>
+    where
+        F: FnMut(&str),
+    {
+        use futures::StreamExt;
+
+        let request = OpenAIChatRequest {
+            model: self.chat_model.clone(),
+            messages,
+            stream: true,
+        };
+
+        let response = self.client
+            .post(format!("{}/api/chat", self.base_url))
+            .json(&request)
+            .send()
+            .await
+            .map_err(|e| AppError::Llm(format!("HTTP 请求失败: {}", e)))?;
+
+        if !response.status().is_success() {
+            let status = response.status();
+            let body = response.text().await.unwrap_or_default();
+            return Err(AppError::Llm(format!("LLM 返回错误 {}: {}", status, body)));
+        }
+
+        let mut stream = response.bytes_stream();
+        let mut content = String::new();
+
+        while let Some(chunk) = stream.next().await {
+            let chunk = chunk.map_err(|e| AppError::Llm(format!("读取流数据失败: {}", e)))?;
+            let text = String::from_utf8_lossy(&chunk);
+            // 尝试解析 SSE 数据
+            for line in text.lines() {
+                if let Some(data) = line.strip_prefix("data: ") {
+                    if data != "[DONE]" {
+                        if let Ok(parsed) = serde_json::from_str::<OpenAIChatResponse>(data) {
+                            if let Some(choice) = parsed.choices.first() {
+                                let delta = &choice.message.content;
+                                if !delta.is_empty() {
+                                    on_chunk(delta);
+                                    content.push_str(delta);
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        let usage = estimate_token_usage(&content);
+        Ok(ChatResult { content, usage })
     }
 }
 
@@ -362,7 +488,7 @@ impl DashScopeClient {
                 prompt_tokens: u.prompt_tokens,
                 completion_tokens: u.completion_tokens,
             })
-            .unwrap_or_else(|| estimate_tokens(&content));
+            .unwrap_or_else(|| estimate_token_usage(&content));
 
         Ok(ChatResult { content, usage })
     }
@@ -403,15 +529,75 @@ impl DashScopeClient {
             .map(|d| d.embedding)
             .ok_or_else(|| AppError::Llm("DashScope 返回空嵌入向量".to_string()))
     }
+
+    /// 流式聊天调用
+    pub async fn chat_stream<F>(&self, messages: Vec<ChatMessage>, on_chunk: &mut F) -> Result<ChatResult>
+    where
+        F: FnMut(&str),
+    {
+        use futures::StreamExt;
+
+        if self.api_key.is_empty() {
+            return Err(AppError::Llm("DashScope API Key 未配置，请检查 config.local.toml".to_string()));
+        }
+
+        let request = OpenAIChatRequest {
+            model: self.model.clone(),
+            messages,
+            stream: true,
+        };
+
+        let response = self.client
+            .post(format!("{}/v1/chat/completions", self.base_url))
+            .header("Authorization", format!("Bearer {}", self.api_key))
+            .header("Content-Type", "application/json")
+            .json(&request)
+            .send()
+            .await
+            .map_err(|e| AppError::Llm(format!("HTTP 请求失败: {}", e)))?;
+
+        if !response.status().is_success() {
+            let status = response.status();
+            let body = response.text().await.unwrap_or_default();
+            return Err(AppError::Llm(format!("DashScope 返回错误 {}: {}", status, body)));
+        }
+
+        let mut stream = response.bytes_stream();
+        let mut content = String::new();
+
+        while let Some(chunk) = stream.next().await {
+            let chunk = chunk.map_err(|e| AppError::Llm(format!("读取流数据失败: {}", e)))?;
+            let text = String::from_utf8_lossy(&chunk);
+            // 尝试解析 SSE 数据
+            for line in text.lines() {
+                if let Some(data) = line.strip_prefix("data: ") {
+                    if data != "[DONE]" {
+                        if let Ok(parsed) = serde_json::from_str::<OpenAIChatResponse>(data) {
+                            if let Some(choice) = parsed.choices.first() {
+                                let delta = &choice.message.content;
+                                if !delta.is_empty() {
+                                    on_chunk(delta);
+                                    content.push_str(delta);
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        let usage = estimate_token_usage(&content);
+        Ok(ChatResult { content, usage })
+    }
 }
 
 /// 估算 token 数量（中文约 1.5 字/token，英文约 4 字符/token）
-fn estimate_tokens(text: &str) -> TokenUsage {
+pub(crate) fn estimate_tokens(text: &str) -> usize {
     let mut chinese_chars = 0u64;
     let mut other_chars = 0u64;
     
     for ch in text.chars() {
-        if ch >= '\u{4e00}' && ch <= '\u{9fff}' {
+        if ('\u{4e00}'..='\u{9fff}').contains(&ch) {
             chinese_chars += 1;
         } else if ch.is_alphanumeric() || ch.is_whitespace() {
             other_chars += 1;
@@ -419,10 +605,15 @@ fn estimate_tokens(text: &str) -> TokenUsage {
     }
     
     // 中文：约 1.5 字/token；英文：约 4 字符/token
-    let estimated = (chinese_chars as f64 / 1.5) + (other_chars as f64 / 4.0);
-    
+    (chinese_chars as f64 / 1.5 + other_chars as f64 / 4.0) as usize
+}
+
+/// 估算 token 使用量（用于无 API usage 时的 fallback）
+/// 注意：此函数仅用于估算 completion token，prompt token 需要单独计算
+pub(crate) fn estimate_token_usage(completion: &str) -> TokenUsage {
+    let estimated = estimate_tokens(completion) as u64;
     TokenUsage {
-        prompt_tokens: (estimated * 0.7) as u64, // 假设输入占 70%
-        completion_tokens: (estimated * 0.3) as u64, // 输出占 30%
+        prompt_tokens: 0,  // 无法估算，由调用方补充
+        completion_tokens: estimated,
     }
 }

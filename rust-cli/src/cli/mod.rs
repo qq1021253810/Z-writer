@@ -7,6 +7,17 @@ use crate::config::AppConfig;
 use crate::error::Result;
 use crate::workspace::Workspace;
 use crate::llm::LlmClient;
+use crate::agents::base::{Agent, AgentContext};
+use crate::agents::writing::WritingAgent;
+use crate::agents::plot::PlotAgent;
+use crate::agents::polish::PolishAgent;
+use crate::agents::world_outline::WorldOutlineAgent;
+use crate::agents::character::CharacterAgent;
+use crate::agents::compliance::ComplianceAgent;
+use crate::context::context_manager::ContextManager;
+
+/// 常用提示信息
+const MSG_NO_NOVEL_SELECTED: &str = "请先使用 /use <小说名> 切换到小说";
 
 /// 命令解析
 pub enum Command {
@@ -17,6 +28,11 @@ pub enum Command {
     New(String),
     Continue,
     Fix,
+    Polish,
+    World,
+    Character,
+    Compliance,
+    Create,
     Context,
     Compress,
     WikiHealth,
@@ -54,6 +70,11 @@ impl Command {
             }
             "/continue" => Command::Continue,
             "/fix" => Command::Fix,
+            "/polish" => Command::Polish,
+            "/world" => Command::World,
+            "/character" => Command::Character,
+            "/compliance" => Command::Compliance,
+            "/create" => Command::Create,
             "/context" => Command::Context,
             "/compress" => Command::Compress,
             "/wiki-health" => Command::WikiHealth,
@@ -68,6 +89,17 @@ pub async fn run_repl(config: AppConfig) -> Result<()> {
     let mut rl = DefaultEditor::new()?;
     let mut current_workspace: Option<Workspace> = None;
     let llm_client = LlmClient::new(&config);
+    let mut ctx_manager = ContextManager::new(config.token_budget);
+    
+    // 尝试恢复上次会话的上下文
+    let context_file = config.workspace_path.join(".context_snapshot.json");
+    if context_file.exists() {
+        if let Err(e) = ctx_manager.load_from_file(&context_file) {
+            tracing::warn!("[CLI] 恢复上下文失败: {}", e);
+        } else {
+            println!("{}", "已恢复上次会话的上下文".green());
+        }
+    }
     
     let provider_name = match config.provider {
         crate::config::LlmProvider::Dashscope => format!("百炼 ({})", config.dashscope.model),
@@ -81,7 +113,16 @@ pub async fn run_repl(config: AppConfig) -> Result<()> {
     println!("{}", "╚════════════════════════════════════════╝".cyan());
     println!();
 
-    loop {
+    // 设置 Ctrl+C 信号处理器，实现优雅关闭
+    let running = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(true));
+    let r = running.clone();
+    tokio::spawn(async move {
+        if let Ok(()) = tokio::signal::ctrl_c().await {
+            r.store(false, std::sync::atomic::Ordering::SeqCst);
+        }
+    });
+
+    while running.load(std::sync::atomic::Ordering::SeqCst) {
         let prompt = if let Some(ref ws) = current_workspace {
             format!("[{}] > ", ws.name()).cyan().to_string()
         } else {
@@ -98,6 +139,13 @@ pub async fn run_repl(config: AppConfig) -> Result<()> {
                 match cmd {
                     Command::Help => show_help(),
                     Command::Quit => {
+                        // 优雅关闭：保存上下文快照
+                        if let Err(e) = ctx_manager.save_to_file(&context_file) {
+                            tracing::error!("[CLI] 保存上下文失败: {}", e);
+                            println!("{}", format!("警告: 保存上下文失败: {}", e).yellow());
+                        } else {
+                            tracing::info!("[CLI] 上下文已保存");
+                        }
                         println!("{}", "再见！".green());
                         break;
                     }
@@ -136,47 +184,144 @@ pub async fn run_repl(config: AppConfig) -> Result<()> {
                         }
                     }
                     Command::Continue => {
+                        tracing::info!("[CLI] 执行 continue 命令");
                         if let Some(ref ws) = current_workspace {
-                            match continue_chapter(ws, &llm_client).await {
+                            match run_agent_command(ws, &llm_client, &mut ctx_manager, "continue", "").await {
                                 Ok(_) => println!("{}", "续写完成".green()),
-                                Err(e) => println!("{}", format!("错误: {}", e).red()),
+                                Err(e) => {
+                                    tracing::error!("[CLI] 操作失败: {}", e);
+                                    println!("{}", format!("错误: {}", e).red());
+                                }
                             }
                         } else {
-                            println!("{}", "请先使用 /use <小说名> 切换到小说".yellow());
+                            println!("{}", MSG_NO_NOVEL_SELECTED.yellow());
                         }
                     }
                     Command::Fix => {
+                        tracing::info!("[CLI] 执行 fix 命令");
                         if let Some(ref ws) = current_workspace {
-                            match fix_writer_block(ws, &llm_client).await {
+                            match run_agent_command(ws, &llm_client, &mut ctx_manager, "fix", "").await {
                                 Ok(_) => println!("{}", "卡文修复完成".green()),
-                                Err(e) => println!("{}", format!("错误: {}", e).red()),
+                                Err(e) => {
+                                    tracing::error!("[CLI] 操作失败: {}", e);
+                                    println!("{}", format!("错误: {}", e).red());
+                                }
                             }
                         } else {
-                            println!("{}", "请先使用 /use <小说名> 切换到小说".yellow());
+                            println!("{}", MSG_NO_NOVEL_SELECTED.yellow());
+                        }
+                    }
+                    Command::Polish => {
+                        tracing::info!("[CLI] 执行 polish 命令");
+                        if let Some(ref ws) = current_workspace {
+                            let user_input = read_user_input_for_polish(ws);
+                            match run_agent_command(ws, &llm_client, &mut ctx_manager, "polish", &user_input).await {
+                                Ok(_) => println!("{}", "润色完成".green()),
+                                Err(e) => {
+                                    tracing::error!("[CLI] 操作失败: {}", e);
+                                    println!("{}", format!("错误: {}", e).red());
+                                }
+                            }
+                        } else {
+                            println!("{}", MSG_NO_NOVEL_SELECTED.yellow());
+                        }
+                    }
+                    Command::World => {
+                        tracing::info!("[CLI] 执行 world 命令");
+                        if let Some(ref ws) = current_workspace {
+                            println!("{}", "请输入世界观设计需求（如：设计一个近未来科技商业帝国的规则体系）：".cyan());
+                            let user_input = read_multiline(&mut rl)?;
+                            match run_agent_command(ws, &llm_client, &mut ctx_manager, "world", &user_input).await {
+                                Ok(_) => println!("{}", "世界观设计完成".green()),
+                                Err(e) => {
+                                    tracing::error!("[CLI] 操作失败: {}", e);
+                                    println!("{}", format!("错误: {}", e).red());
+                                }
+                            }
+                        } else {
+                            println!("{}", MSG_NO_NOVEL_SELECTED.yellow());
+                        }
+                    }
+                    Command::Character => {
+                        tracing::info!("[CLI] 执行 character 命令");
+                        if let Some(ref ws) = current_workspace {
+                            println!("{}", "请输入角色设计需求（如：设计一个白手起家的科技创业者角色）：".cyan());
+                            let user_input = read_multiline(&mut rl)?;
+                            match run_agent_command(ws, &llm_client, &mut ctx_manager, "character", &user_input).await {
+                                Ok(_) => println!("{}", "角色设计完成".green()),
+                                Err(e) => {
+                                    tracing::error!("[CLI] 操作失败: {}", e);
+                                    println!("{}", format!("错误: {}", e).red());
+                                }
+                            }
+                        } else {
+                            println!("{}", MSG_NO_NOVEL_SELECTED.yellow());
+                        }
+                    }
+                    Command::Compliance => {
+                        tracing::info!("[CLI] 执行 compliance 命令");
+                        if let Some(ref ws) = current_workspace {
+                            let user_input = read_user_input_for_compliance(ws);
+                            match run_agent_command(ws, &llm_client, &mut ctx_manager, "compliance", &user_input).await {
+                                Ok(_) => println!("{}", "合规检测完成".green()),
+                                Err(e) => {
+                                    tracing::error!("[CLI] 操作失败: {}", e);
+                                    println!("{}", format!("错误: {}", e).red());
+                                }
+                            }
+                        } else {
+                            println!("{}", MSG_NO_NOVEL_SELECTED.yellow());
+                        }
+                    }
+                    Command::Create => {
+                        tracing::info!("[CLI] 执行 create 命令");
+                        println!("{}", "请选择赛道（都市商战/政治权谋/科技革命/科幻）：".cyan());
+                        let genre = match rl.readline("  赛道 > ") {
+                            Ok(line) => {
+                                let line = line.trim().to_string();
+                                if line.is_empty() { "都市商战".to_string() } else { line }
+                            }
+                            Err(_) => "都市商战".to_string(),
+                        };
+                        tracing::info!("[CLI] 用户选择赛道: {}", genre);
+                        println!("{}", format!("正在启动新建小说工作流（赛道：{}）...", genre).cyan());
+                        match run_create_workflow(&config.workspace_path, &llm_client, &genre).await {
+                            Ok(ws) => {
+                                println!("{}", "新小说创建完成".green());
+                                current_workspace = Some(ws);
+                            }
+                            Err(e) => {
+                                tracing::error!("[CLI] 操作失败: {}", e);
+                                println!("{}", format!("错误: {}", e).red());
+                            }
                         }
                     }
                     Command::Context => {
                         if let Some(ref ws) = current_workspace {
-                            show_context(ws);
+                            show_context(ws, &ctx_manager);
                         } else {
-                            println!("{}", "请先使用 /use <小说名> 切换到小说".yellow());
+                            println!("{}", MSG_NO_NOVEL_SELECTED.yellow());
                         }
                     }
                     Command::Compress => {
+                        tracing::info!("[CLI] 执行 compress 命令");
                         if let Some(ref ws) = current_workspace {
-                            match compress_context(ws, &llm_client).await {
+                            match compress_context(ws, &llm_client, &mut ctx_manager).await {
                                 Ok(_) => println!("{}", "上下文压缩完成".green()),
-                                Err(e) => println!("{}", format!("错误: {}", e).red()),
+                                Err(e) => {
+                                    tracing::error!("[CLI] 操作失败: {}", e);
+                                    println!("{}", format!("错误: {}", e).red());
+                                }
                             }
                         } else {
-                            println!("{}", "请先使用 /use <小说名> 切换到小说".yellow());
+                            println!("{}", MSG_NO_NOVEL_SELECTED.yellow());
                         }
                     }
                     Command::WikiHealth => {
                         if let Some(ref ws) = current_workspace {
                             check_wiki_health(ws);
                         } else {
-                            println!("{}", "请先使用 /use <小说名> 切换到小说".yellow());
+                            println!("{}", MSG_NO_NOVEL_SELECTED.yellow());
                         }
                     }
                     Command::Stats => {
@@ -208,94 +353,233 @@ pub async fn run_repl(config: AppConfig) -> Result<()> {
     Ok(())
 }
 
-/// 续写章节
-async fn continue_chapter(workspace: &Workspace, client: &LlmClient) -> Result<()> {
-    println!("{}", "正在准备续写...".cyan());
+/// 统一 Agent 命令路由
+async fn run_agent_command(workspace: &Workspace, client: &LlmClient, ctx_manager: &mut ContextManager, cmd: &str, user_input: &str) -> Result<()> {
+    tracing::info!("[CLI] 执行 {} 命令", cmd);
     
+    // Token 预算检查
+    check_token_budget(ctx_manager);
+    
+    match cmd {
+        "continue" => handle_continue(workspace, client, ctx_manager).await,
+        "fix" => handle_fix(workspace, client).await,
+        "polish" => handle_polish(workspace, client, user_input).await,
+        "world" => handle_world(workspace, client, user_input).await,
+        "character" => handle_character(workspace, client, user_input).await,
+        "compliance" => handle_compliance(workspace, client, user_input).await,
+        _ => Err(crate::error::AppError::Agent(format!("未知 Agent 命令: {}", cmd))),
+    }
+}
+
+/// Token 预算检查
+fn check_token_budget(ctx_manager: &ContextManager) {
+    let current_tokens = ctx_manager.current_tokens();
+    let budget = ctx_manager.token_budget;
+    tracing::debug!("[CLI] 上下文 Token 使用: {}/{}", current_tokens, budget);
+    
+    if current_tokens > budget {
+        println!("{}", format!("⚠ 上下文 Token 用量 ({}) 已超过预算 ({})，建议执行 /compress 压缩", current_tokens, budget).yellow());
+    } else if current_tokens > budget * 8 / 10 {
+        println!("{}", format!("⚠ 上下文 Token 用量 ({}/{}) 已达 {:.0}%，建议执行 /compress 压缩", current_tokens, budget, current_tokens as f64 / budget as f64 * 100.0).yellow());
+    }
+}
+
+/// 处理续写命令
+async fn handle_continue(workspace: &Workspace, client: &LlmClient, ctx_manager: &mut ContextManager) -> Result<()> {
+    println!("{}", "正在准备续写...".cyan());
     let chapter_num = workspace.next_chapter_num()?;
     println!("{}", format!("准备续写第 {} 章", chapter_num).cyan());
+
+    let agent = WritingAgent::new(client.clone());
+    let ctx = AgentContext {
+        workspace_path: workspace.root().to_path_buf(),
+        user_input: format!("续写第 {} 章，保持与前文连贯，字数约 2000 字", chapter_num),
+        system_prompt: agent.system_prompt(),
+    };
+    let result = agent.execute(&ctx).await?;
     
-    // 收集上下文
-    let novel_info = workspace.novel_info()?;
-    let worldview = workspace.worldview()?;
-    let outline = workspace.outline()?;
-    let characters = workspace.characters()?;
-    let recent = workspace.recent_chapters(3)?;
-    
-    // 构建 prompt
-    let mut prompt = String::new();
-    prompt.push_str("【小说信息】\n");
-    prompt.push_str(&novel_info);
-    prompt.push_str("\n");
-    
-    if !worldview.is_empty() && worldview != "# 世界观设定\n\n待补充\n" {
-        prompt.push_str("【世界观】\n");
-        prompt.push_str(&worldview);
-        prompt.push_str("\n");
-    }
-    
-    if !outline.is_empty() && outline != "# 大纲\n\n待补充\n" {
-        prompt.push_str("【大纲】\n");
-        prompt.push_str(&outline);
-        prompt.push_str("\n");
-    }
-    
-    if !characters.is_empty() {
-        prompt.push_str("【角色设定】\n");
-        for char_info in &characters {
-            prompt.push_str(char_info);
-            prompt.push_str("\n");
-        }
-    }
-    
-    if !recent.is_empty() {
-        prompt.push_str("【前情提要】\n");
-        for (num, content) in &recent {
-            prompt.push_str(&format!("第 {} 章:\n{}\n\n", num, content));
-        }
-    }
-    
-    prompt.push_str(&format!("\n请续写第 {} 章，保持与前文连贯，字数约 2000 字。\n", chapter_num));
-    
-    println!("{}", "正在调用 LLM 生成内容...".cyan());
-    
-    // 调用 LLM
-    let messages = vec![
-        crate::llm::ChatMessage {
-            role: "system".to_string(),
-            content: "你是一位专业的网文小说作家，擅长创作精彩的章节内容。请根据提供的设定和前文，续写下一章。".to_string(),
-        },
-        crate::llm::ChatMessage {
-            role: "user".to_string(),
-            content: prompt,
-        },
-    ];
-    
-    let result = client.chat(messages).await?;
-    
-    // 显示 token 统计
-    println!("{}", format!("本次调用 - 输入: {} tokens, 输出: {} tokens, 总计: {} tokens",
-        result.usage.prompt_tokens,
-        result.usage.completion_tokens,
-        result.usage.total()
-    ).dimmed());
+    // 记录到上下文管理器
+    ctx_manager.add_message("user", &format!("续写第 {} 章", chapter_num));
+    ctx_manager.add_message("assistant", &result.content[..result.content.len().min(200)]);
     
     // 保存章节
     workspace.save_chapter(chapter_num, &result.content)?;
-    
+    tracing::info!("[CLI] 保存文件: chapter_{}.md", chapter_num);
     println!("{}", format!("第 {} 章已保存", chapter_num).green());
-    println!("{}", "─".repeat(40).cyan());
-    println!("{}", &result.content[..result.content.len().min(500)]);
-    if result.content.len() > 500 {
-        println!("... (已截断，完整内容已保存到文件)");
-    }
-    println!("{}", "─".repeat(40).cyan());
     
+    print_result_preview(&result.content, 500);
     Ok(())
 }
 
+/// 处理卡文修复命令
+async fn handle_fix(workspace: &Workspace, client: &LlmClient) -> Result<()> {
+    println!("{}", "正在分析卡文问题...".cyan());
+    let next_chapter = workspace.next_chapter_num()?;
+    if next_chapter <= 1 {
+        println!("{}", "还没有章节可以修复".yellow());
+        return Ok(());
+    }
+    let last_chapter_num = next_chapter - 1;
+    
+    let agent = PlotAgent::new(client.clone());
+    let ctx = AgentContext {
+        workspace_path: workspace.root().to_path_buf(),
+        user_input: format!("第 {} 章出现了卡文问题。请提供 3 个不同的续写方案，每个方案约 500 字，帮助作者突破创作瓶颈。", last_chapter_num),
+        system_prompt: agent.system_prompt(),
+    };
+    let result = agent.execute(&ctx).await?;
+    
+    print_result_preview(&result.content, usize::MAX);
+    Ok(())
+}
+
+/// 处理润色命令
+async fn handle_polish(workspace: &Workspace, client: &LlmClient, user_input: &str) -> Result<()> {
+    println!("{}", "正在润色内容...".cyan());
+    let agent = PolishAgent::new(client.clone());
+    let ctx = AgentContext {
+        workspace_path: workspace.root().to_path_buf(),
+        user_input: user_input.to_string(),
+        system_prompt: agent.system_prompt(),
+    };
+    let result = agent.execute(&ctx).await?;
+    
+    print_result_preview(&result.content, usize::MAX);
+    Ok(())
+}
+
+/// 处理世界观设计命令
+async fn handle_world(workspace: &Workspace, client: &LlmClient, user_input: &str) -> Result<()> {
+    println!("{}", "正在设计世界观...".cyan());
+    let agent = WorldOutlineAgent::new(client.clone());
+    let ctx = AgentContext {
+        workspace_path: workspace.root().to_path_buf(),
+        user_input: user_input.to_string(),
+        system_prompt: agent.system_prompt(),
+    };
+    let result = agent.execute(&ctx).await?;
+    
+    // 保存世界观
+    let worldview_content = format!("# 世界观设定\n\n{}", result.content);
+    std::fs::write(workspace.root().join("worldview.md"), &worldview_content)?;
+    tracing::info!("[CLI] 保存文件: worldview.md");
+    println!("{}", "世界观已保存到 worldview.md".green());
+    
+    print_result_preview(&result.content, 800);
+    Ok(())
+}
+
+/// 处理角色设计命令
+async fn handle_character(workspace: &Workspace, client: &LlmClient, user_input: &str) -> Result<()> {
+    println!("{}", "正在设计角色...".cyan());
+    let agent = CharacterAgent::new(client.clone());
+    let ctx = AgentContext {
+        workspace_path: workspace.root().to_path_buf(),
+        user_input: user_input.to_string(),
+        system_prompt: agent.system_prompt(),
+    };
+    let result = agent.execute(&ctx).await?;
+    
+    // 保存角色
+    let char_dir = workspace.root().join("characters");
+    std::fs::create_dir_all(&char_dir)?;
+    let timestamp = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .expect("系统时间获取失败")
+        .as_secs();
+    let char_name = format!("角色_{}.md", timestamp);
+    std::fs::write(char_dir.join(&char_name), &result.content)?;
+    tracing::info!("[CLI] 保存文件: characters/{}", char_name);
+    println!("{}", format!("角色已保存到 characters/{}", char_name).green());
+    
+    print_result_preview(&result.content, 800);
+    Ok(())
+}
+
+/// 处理合规检测命令
+async fn handle_compliance(workspace: &Workspace, client: &LlmClient, user_input: &str) -> Result<()> {
+    println!("{}", "正在进行合规检测...".cyan());
+    let agent = ComplianceAgent::new(client.clone());
+    let ctx = AgentContext {
+        workspace_path: workspace.root().to_path_buf(),
+        user_input: user_input.to_string(),
+        system_prompt: agent.system_prompt(),
+    };
+    let result = agent.execute(&ctx).await?;
+    
+    print_result_preview(&result.content, usize::MAX);
+    Ok(())
+}
+
+/// 打印结果预览
+fn print_result_preview(content: &str, max_len: usize) {
+    println!("{}", "─".repeat(40).cyan());
+    if content.len() > max_len {
+        println!("{}", &content[..max_len]);
+        println!("... (已截断，完整内容已保存到文件)");
+    } else {
+        println!("{}", content);
+    }
+    println!("{}", "─".repeat(40).cyan());
+}
+
+/// 读取润色输入（最新章节内容）
+fn read_user_input_for_polish(workspace: &Workspace) -> String {
+    if let Ok(next) = workspace.next_chapter_num() {
+        if next > 1 {
+            if let Ok(Some(content)) = workspace.read_chapter(next - 1) {
+                return content;
+            }
+        }
+    }
+    String::new()
+}
+
+/// 读取合规检测输入（最新章节内容）
+fn read_user_input_for_compliance(workspace: &Workspace) -> String {
+    // 收集最近3章内容
+    let mut content = String::new();
+    if let Ok(recent) = workspace.recent_chapters(3) {
+        for (num, text) in &recent {
+            content.push_str(&format!("第 {} 章:\n{}\n\n", num, text));
+        }
+    }
+    if content.is_empty() {
+        content = "暂无内容可检测".to_string();
+    }
+    content
+}
+
+/// 读取多行输入（以空行结束）
+fn read_multiline(rl: &mut DefaultEditor) -> Result<String> {
+    let mut lines = Vec::new();
+    loop {
+        let line = rl.readline("  > ")?;
+        if line.trim().is_empty() {
+            break;
+        }
+        lines.push(line);
+    }
+    if lines.is_empty() {
+        return Err(crate::error::AppError::Agent("输入为空".to_string()));
+    }
+    Ok(lines.join("\n"))
+}
+
+/// 运行新建小说工作流
+async fn run_create_workflow(base_path: &std::path::Path, client: &LlmClient, genre: &str) -> Result<Workspace> {
+    use crate::workflows::create_novel::CreateNovelWorkflow;
+    
+    let workflow = CreateNovelWorkflow::new(client.clone());
+    workflow.execute(base_path, genre).await?;
+    
+    // 返回创建的工作区
+    let ws_path = base_path.join(genre);
+    Workspace::open(ws_path)
+}
+
 /// 显示上下文统计
-fn show_context(workspace: &Workspace) {
+fn show_context(workspace: &Workspace, ctx_manager: &ContextManager) {
     println!("{}", "上下文统计:".green().bold());
     
     if let Ok(info) = workspace.novel_info() {
@@ -319,88 +603,23 @@ fn show_context(workspace: &Workspace) {
         println!("  下一章: 第 {} 章", next);
     }
     
+    // ContextManager 状态
+    let ctx_tokens = ctx_manager.current_tokens();
+    println!("  --- 上下文管理器 ---");
+    println!("  Tier 1 最近消息: {} 条", ctx_manager.tier1_recent.len());
+    println!("  Tier 2 压缩摘要: {} 条", ctx_manager.tier2_compressed.len());
+    println!("  Tier 3 永久保留: {} 条", ctx_manager.tier3_permanent.len());
+    println!("  上下文 Token 用量: {} / {} ({:.1}%)",
+        ctx_tokens,
+        ctx_manager.token_budget,
+        if ctx_manager.token_budget > 0 { ctx_tokens as f64 / ctx_manager.token_budget as f64 * 100.0 } else { 0.0 }
+    );
+    
     println!();
 }
 
-/// 卡文修复
-async fn fix_writer_block(workspace: &Workspace, client: &LlmClient) -> Result<()> {
-    println!("{}", "正在分析卡文问题...".cyan());
-    
-    let next_chapter = workspace.next_chapter_num()?;
-    if next_chapter <= 1 {
-        println!("{}", "还没有章节可以修复".yellow());
-        return Ok(());
-    }
-    
-    let last_chapter_num = next_chapter - 1;
-    let last_chapter = workspace.read_chapter(last_chapter_num)?;
-    
-    if last_chapter.is_none() {
-        println!("{}", "找不到最新章节".yellow());
-        return Ok(());
-    }
-    
-    let last_chapter = last_chapter.unwrap();
-    
-    // 收集上下文
-    let novel_info = workspace.novel_info()?;
-    let worldview = workspace.worldview()?;
-    let outline = workspace.outline()?;
-    
-    let mut prompt = String::new();
-    prompt.push_str("【小说信息】\n");
-    prompt.push_str(&novel_info);
-    prompt.push_str("\n");
-    
-    if !worldview.is_empty() && worldview != "# 世界观设定\n\n待补充\n" {
-        prompt.push_str("【世界观】\n");
-        prompt.push_str(&worldview);
-        prompt.push_str("\n");
-    }
-    
-    if !outline.is_empty() && outline != "# 大纲\n\n待补充\n" {
-        prompt.push_str("【大纲】\n");
-        prompt.push_str(&outline);
-        prompt.push_str("\n");
-    }
-    
-    prompt.push_str("【最新章节】\n");
-    prompt.push_str(&last_chapter);
-    prompt.push_str("\n");
-    
-    prompt.push_str(&format!("\n第 {} 章出现了卡文问题。请提供 3 个不同的续写方案，每个方案约 500 字，帮助作者突破创作瓶颈。\n", last_chapter_num));
-    
-    println!("{}", "正在生成修复方案...".cyan());
-    
-    let messages = vec![
-        crate::llm::ChatMessage {
-            role: "system".to_string(),
-            content: "你是一位专业的网文小说创作顾问，擅长帮助作者突破卡文困境。请提供多个不同方向的续写方案。".to_string(),
-        },
-        crate::llm::ChatMessage {
-            role: "user".to_string(),
-            content: prompt,
-        },
-    ];
-    
-    let result = client.chat(messages).await?;
-    
-    // 显示 token 统计
-    println!("{}", format!("本次调用 - 输入: {} tokens, 输出: {} tokens, 总计: {} tokens",
-        result.usage.prompt_tokens,
-        result.usage.completion_tokens,
-        result.usage.total()
-    ).dimmed());
-    
-    println!("{}", "─".repeat(40).cyan());
-    println!("{}", result.content);
-    println!("{}", "─".repeat(40).cyan());
-    
-    Ok(())
-}
-
 /// 上下文压缩
-async fn compress_context(workspace: &Workspace, client: &LlmClient) -> Result<()> {
+async fn compress_context(workspace: &Workspace, client: &LlmClient, ctx_manager: &mut ContextManager) -> Result<()> {
     println!("{}", "正在压缩上下文...".cyan());
     
     let recent = workspace.recent_chapters(10)?;
@@ -433,7 +652,9 @@ async fn compress_context(workspace: &Workspace, client: &LlmClient) -> Result<(
     
     let result = client.chat(messages).await?;
     
-    // 显示 token 统计
+    // 使用 ContextManager 进行压缩
+    ctx_manager.compress_tier2(&result.content);
+    
     println!("{}", format!("本次调用 - 输入: {} tokens, 输出: {} tokens, 总计: {} tokens",
         result.usage.prompt_tokens,
         result.usage.completion_tokens,
@@ -444,6 +665,7 @@ async fn compress_context(workspace: &Workspace, client: &LlmClient) -> Result<(
     println!("{}", result.content);
     println!("{}", "─".repeat(40).cyan());
     println!("{}", format!("压缩完成: {} 章 → {} 字", recent.len(), result.content.len()).green());
+    println!("{}", "上下文管理器已更新: Tier2 已压缩为单条摘要".to_string().dimmed());
     
     Ok(())
 }
@@ -451,10 +673,10 @@ async fn compress_context(workspace: &Workspace, client: &LlmClient) -> Result<(
 /// 显示 Token 统计信息
 fn show_token_stats(client: &LlmClient) {
     println!("{}", "Token 使用统计:".green().bold());
-    println!("  总输入 tokens: {}", client.tracker.total_prompt);
-    println!("  总输出 tokens: {}", client.tracker.total_completion);
+    println!("  总输入 tokens: {}", client.tracker.total_prompt());
+    println!("  总输出 tokens: {}", client.tracker.total_completion());
     println!("  总 tokens: {}", client.tracker.total_tokens());
-    println!("  调用次数: {}", client.tracker.call_count);
+    println!("  调用次数: {}", client.tracker.call_count());
     println!();
 }
 
@@ -467,20 +689,16 @@ fn check_wiki_health(workspace: &Workspace) {
     
     println!("{}", "Wiki 健康检查:".green().bold());
     
-    // 检查实体页面
     let entities_dir = workspace.root().join("wiki/entities");
     if entities_dir.exists() {
         let entities: Vec<_> = std::fs::read_dir(&entities_dir)
-            .unwrap()
-            .filter_map(|e| e.ok())
-            .filter(|e| e.path().extension().and_then(|s| s.to_str()) == Some("md"))
-            .collect();
+            .map(|entries| entries.filter_map(|e| e.ok()).filter(|e| e.path().extension().and_then(|s| s.to_str()) == Some("md")).collect())
+            .unwrap_or_default();
         println!("  实体页面: {} 个", entities.len());
     } else {
         println!("  实体页面: 0 个");
     }
     
-    // 检查素材库
     let materials_path = workspace.root().join("vector_store/materials.json");
     if materials_path.exists() {
         if let Ok(content) = std::fs::read_to_string(&materials_path) {
@@ -490,7 +708,6 @@ fn check_wiki_health(workspace: &Workspace) {
         }
     }
     
-    // 检查记忆树
     let memory_tree_path = workspace.root().join("memory_tree.json");
     if memory_tree_path.exists() {
         if let Ok(content) = std::fs::read_to_string(&memory_tree_path) {
@@ -508,16 +725,47 @@ fn check_wiki_health(workspace: &Workspace) {
 
 fn show_help() {
     println!("{}", "可用命令:".green().bold());
+    println!();
+    println!("{}", "【基础操作】".cyan().bold());
     println!("  /help          - 显示帮助信息");
     println!("  /quit          - 退出程序");
     println!("  /list          - 列出所有小说");
     println!("  /use <name>    - 切换到指定小说");
+    println!("                 示例: /use 都市商战");
     println!("  /new <name>    - 创建新小说");
-    println!("  /continue      - 续写章节");
-    println!("  /fix           - 卡文修复");
+    println!("                 示例: /new 科技帝国");
+    println!();
+    println!("{}", "【创作工作流】".cyan().bold());
+    println!("  /create        - 交互式新建小说（Agent 工作流）");
+    println!("                 流程: 选择赛道 → 生成世界观 → 设计角色 → 生成大纲");
+    println!("  /continue      - 续写章节（WritingAgent）");
+    println!("                 自动读取上下文、世界观、角色设定，生成下一章");
+    println!("  /fix           - 卡文修复（PlotAgent）");
+    println!("                 分析当前章节逻辑漏洞，提供修复方案");
+    println!("  /polish        - 润色最新章节（PolishAgent）");
+    println!("                 优化语言表达、情感描写、节奏控制");
+    println!();
+    println!("{}", "【设定管理】".cyan().bold());
+    println!("  /world         - 世界观设计（WorldOutlineAgent）");
+    println!("                 示例: 设计一个近未来科技商业帝国的规则体系");
+    println!("  /character     - 角色设计（CharacterAgent）");
+    println!("                 示例: 设计一个白手起家的科技创业者角色");
+    println!("  /compliance    - 合规检测（ComplianceAgent）");
+    println!("                 检查内容是否符合平台规范");
+    println!();
+    println!("{}", "【上下文管理】".cyan().bold());
     println!("  /context       - 显示上下文统计");
+    println!("                 显示 Token 使用量、章节摘要、角色状态");
     println!("  /compress      - 手动触发压缩");
+    println!("                 当上下文接近预算时，压缩历史内容");
     println!("  /wiki-health   - Wiki 健康检查");
+    println!("                 检查知识库完整性、缺失页面");
     println!("  /stats         - Token 使用统计");
+    println!("                 显示累计 Token 消耗、调用次数");
+    println!();
+    println!("{}", "【提示】".yellow().bold());
+    println!("  - 使用 Tab 键自动补全命令");
+    println!("  - 使用 ↑↓ 键浏览历史命令");
+    println!("  - 多行输入: 输入空行结束");
     println!();
 }

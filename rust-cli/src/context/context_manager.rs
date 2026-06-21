@@ -38,16 +38,14 @@ impl ContextManager {
         }
     }
 
-    /// 估算 Token 数量（中文优化：1 字 ≈ 1.5 token）
+    /// 估算 Token 数量（委托给 llm 模块统一实现）
     pub fn estimate_tokens(&self, text: &str) -> usize {
-        let ascii_chars = text.chars().filter(|c| c.is_ascii()).count();
-        let other_chars = text.chars().filter(|c| !c.is_ascii()).count();
-        (ascii_chars as f32 * 0.75 + other_chars as f32 * 1.5) as usize
+        crate::llm::estimate_tokens(text)
     }
 
     /// 分类消息重要性
     pub fn classify_importance(&self, content: &str) -> FidelityLevel {
-        let keywords = ["名字", "设定", "记住", "伏笔", "人设", "世界观", "金手指", "关键", "重要"];
+        let keywords = ["名字", "设定", "记住", "伏笔", "人设", "世界观", "核心优势", "关键", "重要"];
         if keywords.iter().any(|k| content.contains(k)) {
             FidelityLevel::Full
         } else if content.len() > 500 {
@@ -167,4 +165,113 @@ impl ContextManager {
         self.tier2_compressed.clear();
         self.tier3_permanent.clear();
     }
+
+    /// 保存上下文到文件（用于优雅关闭）
+    pub fn save_to_file(&self, path: &std::path::Path) -> crate::error::Result<()> {
+        let snapshot = ContextSnapshot {
+            token_budget: self.token_budget,
+            recent_limit: self.recent_limit,
+            tier1_recent: self.tier1_recent.iter().map(|m| MessageSnapshot {
+                role: m.role.clone(),
+                content: m.content.clone(),
+                importance: match m.importance {
+                    FidelityLevel::Full => "full".to_string(),
+                    FidelityLevel::Compressed => "compressed".to_string(),
+                    FidelityLevel::Placeholder => "placeholder".to_string(),
+                },
+            }).collect(),
+            tier2_compressed: self.tier2_compressed.iter().map(|m| MessageSnapshot {
+                role: m.role.clone(),
+                content: m.content.clone(),
+                importance: match m.importance {
+                    FidelityLevel::Full => "full".to_string(),
+                    FidelityLevel::Compressed => "compressed".to_string(),
+                    FidelityLevel::Placeholder => "placeholder".to_string(),
+                },
+            }).collect(),
+            tier3_permanent: self.tier3_permanent.iter().map(|m| MessageSnapshot {
+                role: m.role.clone(),
+                content: m.content.clone(),
+                importance: match m.importance {
+                    FidelityLevel::Full => "full".to_string(),
+                    FidelityLevel::Compressed => "compressed".to_string(),
+                    FidelityLevel::Placeholder => "placeholder".to_string(),
+                },
+            }).collect(),
+        };
+        
+        let json = serde_json::to_string_pretty(&snapshot)
+            .map_err(|e| crate::error::AppError::Context(format!("序列化上下文失败: {}", e)))?;
+        std::fs::write(path, json)
+            .map_err(|e| crate::error::AppError::Context(format!("保存上下文失败: {}", e)))?;
+        
+        tracing::info!("[ContextManager] 上下文已保存到: {}", path.display());
+        Ok(())
+    }
+
+    /// 从文件加载上下文（用于恢复会话）
+    pub fn load_from_file(&mut self, path: &std::path::Path) -> crate::error::Result<()> {
+        if !path.exists() {
+            return Ok(());
+        }
+        
+        let json = std::fs::read_to_string(path)
+            .map_err(|e| crate::error::AppError::Context(format!("读取上下文失败: {}", e)))?;
+        let snapshot: ContextSnapshot = serde_json::from_str(&json)
+            .map_err(|e| crate::error::AppError::Context(format!("解析上下文失败: {}", e)))?;
+        
+        self.token_budget = snapshot.token_budget;
+        self.recent_limit = snapshot.recent_limit;
+        
+        self.tier1_recent = snapshot.tier1_recent.into_iter().map(|m| Message {
+            role: m.role,
+            content: m.content,
+            importance: match m.importance.as_str() {
+                "full" => FidelityLevel::Full,
+                "compressed" => FidelityLevel::Compressed,
+                _ => FidelityLevel::Placeholder,
+            },
+        }).collect();
+        
+        self.tier2_compressed = snapshot.tier2_compressed.into_iter().map(|m| Message {
+            role: m.role,
+            content: m.content,
+            importance: match m.importance.as_str() {
+                "full" => FidelityLevel::Full,
+                "compressed" => FidelityLevel::Compressed,
+                _ => FidelityLevel::Placeholder,
+            },
+        }).collect();
+        
+        self.tier3_permanent = snapshot.tier3_permanent.into_iter().map(|m| Message {
+            role: m.role,
+            content: m.content,
+            importance: match m.importance.as_str() {
+                "full" => FidelityLevel::Full,
+                "compressed" => FidelityLevel::Compressed,
+                _ => FidelityLevel::Placeholder,
+            },
+        }).collect();
+        
+        tracing::info!("[ContextManager] 上下文已从 {} 恢复", path.display());
+        Ok(())
+    }
+}
+
+/// 上下文快照（用于序列化）
+#[derive(serde::Serialize, serde::Deserialize)]
+struct ContextSnapshot {
+    token_budget: usize,
+    recent_limit: usize,
+    tier1_recent: Vec<MessageSnapshot>,
+    tier2_compressed: Vec<MessageSnapshot>,
+    tier3_permanent: Vec<MessageSnapshot>,
+}
+
+/// 消息快照（用于序列化）
+#[derive(serde::Serialize, serde::Deserialize)]
+struct MessageSnapshot {
+    role: String,
+    content: String,
+    importance: String,
 }

@@ -62,8 +62,8 @@ fn test_estimate_tokens_chinese() {
     let text = "这是中文测试";
     let tokens = optimizer.estimate_tokens(text);
     
-    // 6 个中文字符，大约 9 个 token
-    assert_eq!(tokens, 9);
+    // 6 个中文字符，约 4 个 token
+    assert_eq!(tokens, 4);
 }
 
 #[test]
@@ -73,8 +73,8 @@ fn test_estimate_tokens_english() {
     let text = "hello world";
     let tokens = optimizer.estimate_tokens(text);
     
-    // 11 个英文字符，大约 8 个 token
-    assert_eq!(tokens, 8);
+    // 11 个英文字符，约 2 个 token
+    assert_eq!(tokens, 2);
 }
 
 #[test]

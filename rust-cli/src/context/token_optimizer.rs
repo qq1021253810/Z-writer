@@ -38,7 +38,7 @@ impl TokenOptimizer {
 
         // 按句子分割（简单实现：按句号、问号、感叹号分割）
         let sentences: Vec<&str> = text
-            .split(|c| c == '。' || c == '？' || c == '！' || c == '.' || c == '?' || c == '!')
+            .split(['。', '？', '！', '.', '?', '!'])
             .filter(|s| !s.trim().is_empty())
             .collect();
 
@@ -57,7 +57,7 @@ impl TokenOptimizer {
             .collect();
 
         // 按重要性排序
-        scored_sentences.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap());
+        scored_sentences.sort_by(|a, b| b.1.partial_cmp(&a.1).expect("句子重要性排序失败"));
 
         // 选择最重要的句子，直到达到目标比例
         let target_count = (sentences.len() as f32 * target_ratio).ceil() as usize;
@@ -102,7 +102,7 @@ impl TokenOptimizer {
 
         // 长度适中加分（太短或太长都不太好）
         let len = sentence.len();
-        if len >= 20 && len <= 100 {
+        if (20..=100).contains(&len) {
             score += 1.0;
         }
 
@@ -134,12 +134,8 @@ impl TokenOptimizer {
         result
     }
 
-    /// 估算 Token 数量（中文优化）
+    /// 估算 Token 数量（委托给 llm 模块统一实现）
     pub fn estimate_tokens(&self, text: &str) -> usize {
-        // 中文大约 1 字 = 1.5 token，英文大约 1 词 = 1.3 token
-        let chinese_chars = text.chars().filter(|c| *c >= '\u{4e00}' && *c <= '\u{9fff}').count();
-        let other_chars = text.chars().count() - chinese_chars;
-        
-        ((chinese_chars as f32 * 1.5) + (other_chars as f32 * 0.75)) as usize
+        crate::llm::estimate_tokens(text)
     }
 }

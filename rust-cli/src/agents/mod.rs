@@ -1,7 +1,6 @@
 //! Agent 架构模块
 
 pub mod base;
-pub mod controller;
 pub mod writing;
 pub mod world_outline;
 pub mod character;

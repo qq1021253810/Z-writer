@@ -37,7 +37,7 @@ fn test_classify_importance() {
     let cm = ContextManager::new(10000);
     
     // 包含关键词 -> Full
-    let with_keyword = "主角的名字是林凡，他有一个金手指";
+    let with_keyword = "主角的名字是陆远，他有一个核心优势";
     assert_eq!(cm.classify_importance(with_keyword), FidelityLevel::Full);
     
     // 长文本 -> Compressed
@@ -54,9 +54,9 @@ fn test_add_message_tier3() {
     let mut cm = ContextManager::new(10000);
     
     // 添加包含关键词的消息 -> Tier 3
-    cm.add_message("user", "主角的名字是林凡");
+    cm.add_message("user", "主角的名字是陆远");
     assert_eq!(cm.tier3_permanent.len(), 1);
-    assert_eq!(cm.tier3_permanent[0].content, "主角的名字是林凡");
+    assert_eq!(cm.tier3_permanent[0].content, "主角的名字是陆远");
 }
 
 #[test]
@@ -99,7 +99,7 @@ fn test_build_context() {
     let mut cm = ContextManager::new(10000);
     
     // 添加不同层级的消息
-    cm.add_message("system", "世界观设定：这是一个修仙世界");
+    cm.add_message("system", "世界观设定：这是一个都市商战世界");
     cm.add_message("user", "继续写第5章");
     cm.add_message("assistant", "好的，我来继续写");
     
@@ -133,7 +133,7 @@ fn test_current_tokens() {
     let mut cm = ContextManager::new(10000);
     
     cm.add_message("user", "短消息");
-    cm.add_message("user", "主角的名字是林凡");
+    cm.add_message("user", "主角的名字是陆远");
     
     let tokens = cm.current_tokens();
     assert!(tokens > 0);
@@ -144,7 +144,7 @@ fn test_clear() {
     let mut cm = ContextManager::new(10000);
     
     cm.add_message("user", "消息1");
-    cm.add_message("user", "主角的名字是林凡");
+    cm.add_message("user", "主角的名字是陆远");
     
     assert!(!cm.tier1_recent.is_empty() || !cm.tier3_permanent.is_empty());
     
@@ -153,4 +153,46 @@ fn test_clear() {
     assert!(cm.tier1_recent.is_empty());
     assert!(cm.tier2_compressed.is_empty());
     assert!(cm.tier3_permanent.is_empty());
+}
+
+#[test]
+fn test_save_and_load() {
+    let temp_dir = tempfile::tempdir().expect("创建临时目录失败");
+    let save_path = temp_dir.path().join("context.json");
+    
+    // 创建并填充上下文
+    let mut cm1 = ContextManager::new(10000);
+    cm1.add_message("user", "短消息");
+    cm1.add_message("user", "主角的名字是陆远");
+    cm1.add_message("system", "世界观设定");
+    
+    // 保存
+    cm1.save_to_file(&save_path).expect("保存失败");
+    assert!(save_path.exists());
+    
+    // 加载到新实例
+    let mut cm2 = ContextManager::new(5000);
+    cm2.load_from_file(&save_path).expect("加载失败");
+    
+    // 验证恢复的数据
+    assert_eq!(cm2.token_budget, 10000);
+    assert_eq!(cm2.tier1_recent.len(), cm1.tier1_recent.len());
+    assert_eq!(cm2.tier2_compressed.len(), cm1.tier2_compressed.len());
+    assert_eq!(cm2.tier3_permanent.len(), cm1.tier3_permanent.len());
+    
+    // 验证内容一致性
+    if !cm1.tier3_permanent.is_empty() && !cm2.tier3_permanent.is_empty() {
+        assert_eq!(cm1.tier3_permanent[0].content, cm2.tier3_permanent[0].content);
+        assert_eq!(cm1.tier3_permanent[0].role, cm2.tier3_permanent[0].role);
+    }
+}
+
+#[test]
+fn test_load_nonexistent_file() {
+    let mut cm = ContextManager::new(10000);
+    let nonexistent = std::path::PathBuf::from("/nonexistent/path/context.json");
+    
+    // 加载不存在的文件应该返回 Ok（不报错）
+    let result = cm.load_from_file(&nonexistent);
+    assert!(result.is_ok());
 }

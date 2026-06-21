@@ -7,16 +7,13 @@ use crate::error::{AppError, Result};
 /// LLM 提供商
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "lowercase")]
+#[derive(Default)]
 pub enum LlmProvider {
+    #[default]
     Dashscope,
     Ollama,
 }
 
-impl Default for LlmProvider {
-    fn default() -> Self {
-        LlmProvider::Dashscope
-    }
-}
 
 /// 应用配置
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -164,6 +161,42 @@ impl AppConfig {
             .map_err(|e| AppError::Config(format!("序列化配置失败: {}", e)))?;
 
         std::fs::write(path, content)?;
+        Ok(())
+    }
+
+    /// 验证配置有效性
+    pub fn validate(&self) -> Result<()> {
+        match self.provider {
+            LlmProvider::Dashscope => {
+                if self.dashscope.api_key.is_empty() {
+                    return Err(AppError::Config(
+                        "百炼 DashScope API Key 未配置。请在 config.local.toml 中设置 [dashscope] api_key 字段。".to_string()
+                    ));
+                }
+                tracing::info!("[Config] DashScope 配置验证通过，模型: {}", self.dashscope.model);
+            }
+            LlmProvider::Ollama => {
+                if self.ollama_url.is_empty() {
+                    return Err(AppError::Config(
+                        "Ollama 服务地址未配置。请在 config.toml 中设置 ollama_url 字段。".to_string()
+                    ));
+                }
+                tracing::info!("[Config] Ollama 配置验证通过，地址: {}", self.ollama_url);
+            }
+        }
+
+        if self.token_budget == 0 {
+            return Err(AppError::Config(
+                "Token 预算不能为 0。请在 config.toml 中设置 token_budget 字段。".to_string()
+            ));
+        }
+
+        if self.workspace_path.as_os_str().is_empty() {
+            return Err(AppError::Config(
+                "工作区路径不能为空。".to_string()
+            ));
+        }
+
         Ok(())
     }
 }

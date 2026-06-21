@@ -93,7 +93,7 @@ impl L3MaterialStore {
             })
             .collect();
 
-        scored.sort_by(|a, b| b.0.partial_cmp(&a.0).unwrap());
+        scored.sort_by(|a, b| b.0.partial_cmp(&a.0).expect("浮点数比较失败"));
         scored.into_iter().take(top_k).map(|(_, m)| m).collect()
     }
 
@@ -119,7 +119,7 @@ impl L3MaterialStore {
             .filter(|(score, _)| *score > 0)
             .collect();
 
-        scored.sort_by(|a, b| b.0.cmp(&a.0));
+        scored.sort_by_key(|s| std::cmp::Reverse(s.0));
         scored.into_iter().take(top_k).map(|(_, m)| m).collect()
     }
 
@@ -163,7 +163,7 @@ impl L3MaterialStore {
             } else { 
                 &m.content 
             };
-            summary.push_str(&format!("- [{}] {}\n", format!("{:?}", m.category), preview));
+            summary.push_str(&format!("- [{:?}] {}\n", m.category, preview));
         }
 
         summary

@@ -2,7 +2,7 @@
 
 use zwriter_cli::git::GitManager;
 use zwriter_cli::workspace::Workspace;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicUsize, Ordering};
 
 static COUNTER: AtomicUsize = AtomicUsize::new(0);
@@ -17,10 +17,17 @@ fn cleanup(path: &PathBuf) {
     let _ = std::fs::remove_dir_all(path);
 }
 
+/// 清理并创建测试工作区，避免并行测试残留目录冲突
+fn fresh_workspace(base: &Path, name: &str) -> Workspace {
+    let root = base.join(name);
+    let _ = std::fs::remove_dir_all(&root);
+    Workspace::create(base, name).unwrap()
+}
+
 #[test]
 fn test_git_init() {
     let base = unique_test_path();
-    let ws = Workspace::create(&base, "测试小说").unwrap();
+    let ws = fresh_workspace(&base, "测试小说");
     
     // 检查 git 是否可用
     if !GitManager::check_git_available() {
@@ -39,7 +46,7 @@ fn test_git_init() {
 #[test]
 fn test_git_add_and_commit() {
     let base = unique_test_path();
-    let ws = Workspace::create(&base, "测试小说").unwrap();
+    let ws = fresh_workspace(&base, "测试小说");
     
     if !GitManager::check_git_available() {
         println!("Git 未安装，跳过测试");
@@ -66,7 +73,7 @@ fn test_git_add_and_commit() {
 #[test]
 fn test_git_log() {
     let base = unique_test_path();
-    let ws = Workspace::create(&base, "测试小说").unwrap();
+    let ws = fresh_workspace(&base, "测试小说");
     
     if !GitManager::check_git_available() {
         println!("Git 未安装，跳过测试");
@@ -96,7 +103,7 @@ fn test_git_log() {
 #[test]
 fn test_git_status() {
     let base = unique_test_path();
-    let ws = Workspace::create(&base, "测试小说").unwrap();
+    let ws = fresh_workspace(&base, "测试小说");
     
     if !GitManager::check_git_available() {
         println!("Git 未安装，跳过测试");
@@ -122,7 +129,7 @@ fn test_git_status() {
 #[test]
 fn test_git_diff() {
     let base = unique_test_path();
-    let ws = Workspace::create(&base, "测试小说").unwrap();
+    let ws = fresh_workspace(&base, "测试小说");
     
     if !GitManager::check_git_available() {
         println!("Git 未安装，跳过测试");

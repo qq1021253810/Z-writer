@@ -13,6 +13,9 @@ async fn main() -> anyhow::Result<()> {
     let config_path = std::path::PathBuf::from("config.toml");
     let config = AppConfig::load(&config_path)?;
 
+    // 验证配置
+    config.validate()?;
+
     // 运行 REPL
     cli::run_repl(config).await?;
 

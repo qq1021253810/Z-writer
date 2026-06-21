@@ -1,0 +1,27 @@
+# Rust build output
+target/
+
+# 本地配置文件（含敏感信息如 API Key）
+config.local.toml
+
+# 日志文件
+*.log
+
+# 测试临时目录
+test_ws_*/
+test_config_*.toml
+test_git_*/
+
+# IDE 配置
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS 文件
+.DS_Store
+Thumbs.db
+
+# 环境变量文件
+.env
+.env.local

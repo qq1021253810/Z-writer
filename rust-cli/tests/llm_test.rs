@@ -48,8 +48,8 @@ async fn test_dashscope_chat() {
     let result = client.chat(messages).await;
     assert!(result.is_ok(), "百炼调用失败: {:?}", result.err());
     let response = result.unwrap();
-    assert!(!response.is_empty(), "百炼返回空内容");
-    let preview = safe_truncate(&response, 200);
+    assert!(!response.content.is_empty(), "百炼返回空内容");
+    let preview = safe_truncate(&response.content, 200);
     println!("百炼响应: {}", preview);
 }
 

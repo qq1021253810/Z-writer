@@ -1,6 +1,6 @@
 // Rolling summary tests
 
-use zwriter_cli::context::rolling_summary::{RollingSummary, ChapterSummary};
+use zwriter_cli::context::rolling_summary::{RollingSummary, RollingChapterSummary};
 use std::path::PathBuf;
 
 #[test]
@@ -15,7 +15,7 @@ fn test_rolling_summary_new() {
 #[test]
 fn test_add_chapter_summary() {
     let mut rs = RollingSummary::new();
-    let summary = ChapterSummary::new(1, "test_title", "test_summary")
+    let summary = RollingChapterSummary::new(1, "test_title", "test_summary")
         .add_key_event("event1");
     rs.add_chapter_summary(summary);
     assert_eq!(rs.chapter_summaries.len(), 1);
@@ -37,7 +37,7 @@ fn test_needs_compression() {
     assert!(!rs.needs_compression());
     
     for i in 1..=3 {
-        rs.add_chapter_summary(ChapterSummary::new(i, &format!("ch{}", i), "summary"));
+        rs.add_chapter_summary(RollingChapterSummary::new(i, &format!("ch{}", i), "summary"));
     }
     
     assert!(rs.needs_compression());
@@ -48,7 +48,7 @@ fn test_compress_chapters() {
     let mut rs = RollingSummary::new();
     
     for i in 1..=5 {
-        rs.add_chapter_summary(ChapterSummary::new(i, &format!("ch{}", i), "summary"));
+        rs.add_chapter_summary(RollingChapterSummary::new(i, &format!("ch{}", i), "summary"));
     }
     
     rs.compress_chapters("overall", "plot_progress", "character_arcs");
@@ -73,16 +73,16 @@ fn test_build_continuation_context() {
     
     // Add some chapter summaries first (compress_chapters requires non-empty chapter_summaries)
     for i in 1..=5 {
-        rs.add_chapter_summary(ChapterSummary::new(i, &format!("ch{}", i), "summary"));
+        rs.add_chapter_summary(RollingChapterSummary::new(i, &format!("ch{}", i), "summary"));
     }
     
     // Compress them into overall summary
     rs.compress_chapters("previous_summary", "plot_progress", "char_growth");
     
     // Add recent chapter summaries
-    rs.add_chapter_summary(ChapterSummary::new(11, "title11", "summary11")
+    rs.add_chapter_summary(RollingChapterSummary::new(11, "title11", "summary11")
         .add_key_event("event1"));
-    rs.add_chapter_summary(ChapterSummary::new(12, "title12", "summary12"));
+    rs.add_chapter_summary(RollingChapterSummary::new(12, "title12", "summary12"));
     
     rs.update_style_anchor("style_passage");
     
@@ -98,9 +98,9 @@ fn test_build_continuation_context() {
 fn test_build_context_filters_current_chapter() {
     let mut rs = RollingSummary::new();
     
-    rs.add_chapter_summary(ChapterSummary::new(1, "ch1_title", "summary1"));
-    rs.add_chapter_summary(ChapterSummary::new(2, "ch2_title", "summary2"));
-    rs.add_chapter_summary(ChapterSummary::new(3, "ch3_title", "summary3"));
+    rs.add_chapter_summary(RollingChapterSummary::new(1, "ch1_title", "summary1"));
+    rs.add_chapter_summary(RollingChapterSummary::new(2, "ch2_title", "summary2"));
+    rs.add_chapter_summary(RollingChapterSummary::new(3, "ch3_title", "summary3"));
     
     // From chapter 2 perspective, should only see chapter 1
     let context = rs.build_continuation_context(2);
@@ -113,7 +113,7 @@ fn test_build_context_filters_current_chapter() {
 fn test_save_load() {
     let mut rs = RollingSummary::new();
     
-    rs.add_chapter_summary(ChapterSummary::new(1, "title1", "summary1")
+    rs.add_chapter_summary(RollingChapterSummary::new(1, "title1", "summary1")
         .add_key_event("event1"));
     rs.update_style_anchor("style_passage");
     
@@ -133,14 +133,14 @@ fn test_generate_report() {
     
     // Add chapter summaries first
     for i in 1..=3 {
-        rs.add_chapter_summary(ChapterSummary::new(i, &format!("ch{}", i), "summary"));
+        rs.add_chapter_summary(RollingChapterSummary::new(i, &format!("ch{}", i), "summary"));
     }
     
     // Compress them
     rs.compress_chapters("compressed_content", "plot", "chars");
     
     // Add new chapter summaries
-    rs.add_chapter_summary(ChapterSummary::new(11, "chapter_title", "chapter_summary")
+    rs.add_chapter_summary(RollingChapterSummary::new(11, "chapter_title", "chapter_summary")
         .add_key_event("key_event"));
     rs.update_style_anchor("style_content");
     

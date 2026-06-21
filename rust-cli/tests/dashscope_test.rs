@@ -52,8 +52,8 @@ async fn test_dashscope_chat() {
     let result = client.chat(messages).await;
     assert!(result.is_ok(), "百炼调用失败: {:?}", result.err());
     let response = result.unwrap();
-    assert!(!response.is_empty(), "百炼返回空内容");
-    let preview = safe_truncate(&response, 200);
+    assert!(!response.content.is_empty(), "百炼返回空内容");
+    let preview = safe_truncate(&response.content, 200);
     println!("✅ 百炼响应: {}", preview);
 }
 
@@ -93,15 +93,15 @@ async fn test_dashscope_novel_generation() {
         },
         ChatMessage {
             role: "user".to_string(),
-            content: "请写一段 100 字左右的玄幻小说开头，主角名叫林凡。".to_string(),
+            content: "请写一段 100 字左右的都市商战小说开头，主角名叫陆远。".to_string(),
         },
     ];
     
     let result = client.chat(messages).await;
     assert!(result.is_ok(), "百炼小说生成失败: {:?}", result.err());
     let response = result.unwrap();
-    assert!(response.len() >= 50, "生成内容过短");
-    let preview = safe_truncate(&response, 300);
+    assert!(response.content.len() >= 50, "生成内容过短");
+    let preview = safe_truncate(&response.content, 300);
     println!("✅ 百炼小说生成:\n{}", preview);
 }
 

@@ -33,6 +33,11 @@ pub trait Agent: Send + Sync {
     /// 执行 Agent 任务
     async fn execute(&self, ctx: &AgentContext) -> Result<AgentResult>;
     
+    /// 流式执行 Agent 任务（实时输出）
+    async fn execute_stream<F>(&self, ctx: &AgentContext, on_chunk: F) -> Result<AgentResult>
+    where
+        F: FnMut(&str) + Send;
+    
     /// 获取系统提示词
     fn system_prompt(&self) -> String;
     

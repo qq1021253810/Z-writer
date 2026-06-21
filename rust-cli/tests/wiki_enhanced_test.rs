@@ -37,8 +37,8 @@ fn setup_test_wiki() -> Wiki {
     ).unwrap();
     
     fs::write(
-        path.join("genres/xuanhuan.md"),
-        "# 玄幻赛道\n\n## 修炼体系\n\n修炼境界分为：炼气、筑基、金丹、元婴。"
+        path.join("genres/shangzhan.md"),
+        "# 商战赛道\n\n## 商业规则\n\n商业布局分为：市场调研、技术突破、产业链闭环、资本运作。"
     ).unwrap();
     
     fs::write(
@@ -60,7 +60,7 @@ fn test_list_pages() {
     
     let pages = wiki.list_pages().unwrap();
     
-    // 应该至少有 4 个页面（rules/writing_rules.md, genres/xuanhuan.md, templates/writing.md, templates/polish.md）
+    // 应该至少有 4 个页面（rules/writing_rules.md, genres/shangzhan.md, templates/writing.md, templates/polish.md）
     assert!(pages.len() >= 4, "应该至少有 4 个页面，实际有 {} 个", pages.len());
     
     // 验证页面包含正确的分类
@@ -99,8 +99,8 @@ fn test_health_check_missing_files() {
     // 只创建部分目录（缺少 rules 和 templates）
     fs::create_dir_all(path.join("genres")).unwrap();
     fs::write(
-        path.join("genres/xuanhuan.md"),
-        "# 玄幻赛道"
+        path.join("genres/shangzhan.md"),
+        "# 商战赛道"
     ).unwrap();
     
     let wiki = Wiki::new(path.clone());
@@ -147,12 +147,12 @@ fn test_extract_entities() {
     let wiki = setup_test_wiki();
     
     let text = r#"
-角色: 张三，主角，修炼天才
+角色: 张三，主角，科技创业家
 人物: 李四，配角
-地点: 青云门，修炼圣地
-功法: 太上感应篇，顶级功法
-门派: 青云宗，超级门派
-法宝: 诛仙剑，神器
+地点: 星辰科技，创业圣地
+方案: 全产业链闭环，核心战略
+公司: 天虎集团，行业巨头
+资源: 核心技术专利，核心资产
 "#;
     
     let entities = wiki.extract_entities(text);
@@ -172,10 +172,10 @@ fn test_extract_entities() {
     let names: Vec<&str> = entities.iter().map(|e| e.name.as_str()).collect();
     assert!(names.contains(&"张三"), "应该包含张三");
     assert!(names.contains(&"李四"), "应该包含李四");
-    assert!(names.contains(&"青云门"), "应该包含青云门");
-    assert!(names.contains(&"太上感应篇"), "应该包含太上感应篇");
-    assert!(names.contains(&"青云宗"), "应该包含青云宗");
-    assert!(names.contains(&"诛仙剑"), "应该包含诛仙剑");
+    assert!(names.contains(&"星辰科技"), "应该包含星辰科技");
+    assert!(names.contains(&"全产业链闭环"), "应该包含全产业链闭环");
+    assert!(names.contains(&"天虎集团"), "应该包含天虎集团");
+    assert!(names.contains(&"核心技术专利"), "应该包含核心技术专利");
     
     println!("✅ 实体提取成功，共提取 {} 个实体", entities.len());
     
@@ -187,13 +187,13 @@ fn test_generate_entity_page() {
     let wiki = setup_test_wiki();
     
     let mut attrs = HashMap::new();
-    attrs.insert("境界".to_string(), "金丹期".to_string());
+    attrs.insert("职位".to_string(), "CEO".to_string());
     attrs.insert("年龄".to_string(), "25".to_string());
     
     let entity = Entity {
-        name: "韩立".to_string(),
+        name: "陆远".to_string(),
         entity_type: EntityType::Character,
-        description: "修仙世界主角，性格谨慎".to_string(),
+        description: "科技创业公司CEO，战略眼光卓越".to_string(),
         attributes: attrs,
     };
     
@@ -204,11 +204,11 @@ fn test_generate_entity_page() {
     
     // 读取文件内容并验证
     let content = fs::read_to_string(&path).unwrap();
-    assert!(content.contains("# 韩立"), "应该包含实体名称");
+    assert!(content.contains("# 陆远"), "应该包含实体名称");
     assert!(content.contains("Character"), "应该包含实体类型");
-    assert!(content.contains("修仙世界主角"), "应该包含描述");
-    assert!(content.contains("境界"), "应该包含属性");
-    assert!(content.contains("金丹期"), "应该包含属性值");
+    assert!(content.contains("科技创业公司CEO"), "应该包含描述");
+    assert!(content.contains("职位"), "应该包含属性");
+    assert!(content.contains("CEO"), "应该包含属性值");
     
     println!("✅ 实体页面生成成功: {:?}", path);
     
@@ -220,15 +220,15 @@ fn test_auto_generate_pages() {
     let wiki = setup_test_wiki();
     
     let dialogue = r#"
-角色: 萧炎，主角，天才少年
-地点: 加玛帝国，故事发生地
-功法: 焚诀，神秘功法
-宗门: 云岚宗，强大势力
+角色: 萧炎，主角，科技创业家
+地点: 北京中关村，故事发生地
+方案: 全产业链闭环，核心战略
+公司: 云岚集团，强大势力
 "#;
     
     let generated = wiki.auto_generate_pages(dialogue).unwrap();
     
-    // 应该生成 4 个页面
+    // 应该生成 4 个页面（角色、地点、方案、公司）
     assert_eq!(generated.len(), 4, "应该生成 4 个页面，实际生成 {} 个", generated.len());
     
     // 验证所有文件都已创建
@@ -265,14 +265,14 @@ fn test_smart_load_with_genre() {
     let wiki = setup_test_wiki();
     
     // 测试加载指定赛道
-    let pages = wiki.smart_load("普通文本", Some("xuanhuan")).unwrap();
+    let pages = wiki.smart_load("普通文本", Some("shangzhan")).unwrap();
     
     assert!(pages.len() >= 2, "应该至少加载规则和赛道");
     
     let combined = pages.join("\n");
     assert!(combined.contains("写作规则"), "应该包含规则");
-    assert!(combined.contains("玄幻赛道"), "应该包含赛道内容");
-    assert!(combined.contains("修炼体系"), "应该包含赛道详细内容");
+    assert!(combined.contains("商战赛道"), "应该包含赛道内容");
+    assert!(combined.contains("商业规则"), "应该包含赛道详细内容");
     
     println!("✅ 智能加载赛道功能正常");
     
@@ -288,15 +288,15 @@ fn test_smart_load_with_entities() {
     fs::create_dir_all(&entities_dir).unwrap();
     fs::write(
         entities_dir.join("张三.md"),
-        "# 张三\n\n主角，修炼天才。"
+        "# 张三\n\n主角，科技创业家。"
     ).unwrap();
     fs::write(
         entities_dir.join("李四.md"),
-        "# 李四\n\n配角，张三的好友。"
+        "# 李四\n\n配角，张三的合作伙伴。"
     ).unwrap();
     
     // 测试根据上下文加载实体
-    let context = "张三和李四一起修炼";
+    let context = "张三和李四一起创业";
     let pages = wiki.smart_load(context, None).unwrap();
     
     let combined = pages.join("\n");
@@ -358,12 +358,12 @@ fn test_update_entity() {
     let wiki = setup_test_wiki();
     
     let mut attrs = HashMap::new();
-    attrs.insert("境界".to_string(), "元婴期".to_string());
+    attrs.insert("职位".to_string(), "董事长".to_string());
     
     let entity = Entity {
         name: "张三".to_string(),
         entity_type: EntityType::Character,
-        description: "主角，修炼天才，已突破元婴".to_string(),
+        description: "科技创业家，公司已上市".to_string(),
         attributes: attrs,
     };
     
@@ -374,8 +374,8 @@ fn test_update_entity() {
     // 读取并验证内容
     let content = fs::read_to_string(&path).unwrap();
     assert!(content.contains("# 张三"), "应该包含实体名称");
-    assert!(content.contains("元婴期"), "应该包含更新的属性");
-    assert!(content.contains("已突破元婴"), "应该包含更新的描述");
+    assert!(content.contains("董事长"), "应该包含更新的属性");
+    assert!(content.contains("公司已上市"), "应该包含更新的描述");
     
     println!("✅ 更新实体功能正常");
     
@@ -393,13 +393,15 @@ fn test_entity_type_conversion() {
     assert_eq!(EntityType::Concept.as_str(), "concept");
     
     // 测试从字符串转换
-    assert_eq!(EntityType::from_str("character"), Some(EntityType::Character));
-    assert_eq!(EntityType::from_str("角色"), Some(EntityType::Character));
-    assert_eq!(EntityType::from_str("人物"), Some(EntityType::Character));
-    assert_eq!(EntityType::from_str("location"), Some(EntityType::Location));
-    assert_eq!(EntityType::from_str("地点"), Some(EntityType::Location));
-    assert_eq!(EntityType::from_str("功法"), Some(EntityType::Skill));
-    assert_eq!(EntityType::from_str("unknown"), None);
+    assert_eq!(EntityType::parse("character"), Some(EntityType::Character));
+    assert_eq!(EntityType::parse("角色"), Some(EntityType::Character));
+    assert_eq!(EntityType::parse("人物"), Some(EntityType::Character));
+    assert_eq!(EntityType::parse("location"), Some(EntityType::Location));
+    assert_eq!(EntityType::parse("地点"), Some(EntityType::Location));
+    assert_eq!(EntityType::parse("技能"), Some(EntityType::Skill));
+    assert_eq!(EntityType::parse("策略"), Some(EntityType::Skill));
+    assert_eq!(EntityType::parse("方案"), Some(EntityType::Skill));
+    assert_eq!(EntityType::parse("unknown"), None);
     
     println!("✅ EntityType 转换功能正常");
 }

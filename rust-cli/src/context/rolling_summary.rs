@@ -6,7 +6,7 @@ use crate::error::{AppError, Result};
 
 /// 章节摘要
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct ChapterSummary {
+pub struct RollingChapterSummary {
     pub chapter_num: usize,
     pub title: String,
     pub summary: String,
@@ -25,10 +25,16 @@ pub struct CompressedSummary {
 
 /// 滚动摘要管理器
 pub struct RollingSummary {
-    pub chapter_summaries: Vec<ChapterSummary>,
+    pub chapter_summaries: Vec<RollingChapterSummary>,
     pub compressed_summaries: Vec<CompressedSummary>,  // 历史压缩摘要
     pub style_anchor: String,
     pub compression_threshold: usize,  // 每 N 章触发深度压缩
+}
+
+impl Default for RollingSummary {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl RollingSummary {
@@ -42,7 +48,7 @@ impl RollingSummary {
     }
 
     /// 添加章节摘要
-    pub fn add_chapter_summary(&mut self, summary: ChapterSummary) {
+    pub fn add_chapter_summary(&mut self, summary: RollingChapterSummary) {
         self.chapter_summaries.push(summary);
     }
 
@@ -63,8 +69,8 @@ impl RollingSummary {
             return;
         }
 
-        let first_chapter = self.chapter_summaries.first().unwrap().chapter_num;
-        let last_chapter = self.chapter_summaries.last().unwrap().chapter_num;
+        let first_chapter = self.chapter_summaries.first().expect("章节摘要列表为空").chapter_num;
+        let last_chapter = self.chapter_summaries.last().expect("章节摘要列表为空").chapter_num;
 
         let compressed = CompressedSummary {
             volume_range: format!("第 {}-{} 章", first_chapter, last_chapter),
@@ -97,7 +103,7 @@ impl RollingSummary {
         }
 
         // 2. 最近 3 章摘要（详细）
-        let recent: Vec<&ChapterSummary> = self.chapter_summaries
+        let recent: Vec<&RollingChapterSummary> = self.chapter_summaries
             .iter()
             .filter(|s| s.chapter_num < current_chapter)
             .rev()
@@ -135,7 +141,7 @@ impl RollingSummary {
         }
         let content = std::fs::read_to_string(path)?;
         let data: SummaryData = serde_json::from_str(&content)
-            .map_err(|e| AppError::Json(e))?;
+            .map_err(AppError::Json)?;
         Ok(Self {
             chapter_summaries: data.chapter_summaries,
             compressed_summaries: data.compressed_summaries,
@@ -200,7 +206,7 @@ impl RollingSummary {
     }
 }
 
-impl ChapterSummary {
+impl RollingChapterSummary {
     pub fn new(chapter_num: usize, title: &str, summary: &str) -> Self {
         Self {
             chapter_num,
@@ -224,7 +230,7 @@ impl ChapterSummary {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 struct SummaryData {
-    chapter_summaries: Vec<ChapterSummary>,
+    chapter_summaries: Vec<RollingChapterSummary>,
     compressed_summaries: Vec<CompressedSummary>,
     style_anchor: String,
     compression_threshold: usize,

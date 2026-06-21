@@ -52,7 +52,7 @@ async fn test_e2e_create_and_continue() {
     }
     
     // 1. 创建小说工作区
-    let ws = Workspace::create(&base, "玄幻测试").unwrap();
+    let ws = Workspace::create(&base, "商战测试").unwrap();
     assert!(ws.root().join("novel.md").exists());
     assert!(ws.root().join("characters").exists());
     assert!(ws.root().join("chapters").exists());
@@ -60,31 +60,31 @@ async fn test_e2e_create_and_continue() {
     // 2. 写入小说设定
     std::fs::write(
         ws.root().join("novel.md"),
-        "# 玄幻测试\n\n- 类型: 玄幻\n- 状态: 创作中\n- 简介: 少年林凡偶得神秘铁片，踏上修仙之路\n",
+        "# 商战测试\n\n- 类型: 都市商战\n- 状态: 创作中\n- 简介: 陆远凭借超前技术眼光，从零开始构建科技商业帝国\n",
     ).unwrap();
     
     // 3. 写入世界观
     std::fs::write(
         ws.root().join("worldview.md"),
-        "# 世界观设定\n\n修炼体系：炼气、筑基、金丹、元婴、化神\n主要势力：青云门、天魔宗\n",
+        "# 世界观设定\n\n规则体系：公司法、证券法、反垄断法、知识产权法\n主要势力：星辰科技、天虎集团、国家基金\n",
     ).unwrap();
     
     // 4. 写入角色
     std::fs::write(
-        ws.root().join("characters").join("林凡.md"),
-        "# 林凡\n\n- 身份: 青云门外门弟子\n- 修为: 炼气三层\n- 性格: 坚韧不拔\n- 金手指: 神秘铁片\n",
+        ws.root().join("characters").join("陆远.md"),
+        "# 陆远\n\n- 身份: 星辰科技CEO\n- 年龄: 32\n- 决策风格: 谋略型\n- 核心优势: 超前技术眼光、全产业链思维\n",
     ).unwrap();
     
     // 5. 写入大纲
     std::fs::write(
         ws.root().join("outline.md"),
-        "# 大纲\n\n第一卷：初入仙途\n- 第1章：林凡在青云门修炼，偶得神秘铁片\n",
+        "# 大纲\n\n第一卷：创业起步\n- 第1章：陆远发现行业痛点，决定创业\n",
     ).unwrap();
     
     // 6. 验证工作区状态
     assert_eq!(ws.next_chapter_num().unwrap(), 1);
     let info = ws.novel_info().unwrap();
-    assert!(info.contains("玄幻测试"));
+    assert!(info.contains("商战测试"));
     let chars = ws.characters().unwrap();
     assert_eq!(chars.len(), 1);
     
@@ -116,10 +116,10 @@ async fn test_e2e_create_and_continue() {
     ];
     
     let response = client.chat(messages).await.unwrap();
-    assert!(!response.is_empty());
+    assert!(!response.content.is_empty());
     
     // 8. 保存章节
-    ws.save_chapter(1, &response).unwrap();
+    ws.save_chapter(1, &response.content).unwrap();
     assert_eq!(ws.next_chapter_num().unwrap(), 2);
     
     // 9. 验证章节已保存
@@ -135,7 +135,7 @@ async fn test_e2e_create_and_continue() {
     println!("✅ 端到端测试通过！");
     println!("   - 小说创建: OK");
     println!("   - 设定写入: OK");
-    println!("   - 百炼 LLM 续写: OK ({} 字)", response.len());
+    println!("   - 百炼 LLM 续写: OK ({} 字)", response.content.len());
     println!("   - 章节保存: OK");
     println!("   - 章节读取: OK");
     

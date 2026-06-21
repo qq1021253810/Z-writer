@@ -13,7 +13,7 @@ pub struct CharacterState {
     pub emotional_state: String,
     pub relationships: HashMap<String, String>,
     pub inventory: Vec<String>,
-    pub power_level: Option<String>,
+    pub capability_tier: Option<String>,
     pub dialogue_style: String,
     pub growth_stage: String,
     pub last_updated_chapter: usize,
@@ -34,6 +34,12 @@ pub struct CharacterTracker {
     pub history: HashMap<String, Vec<CharacterChange>>,
 }
 
+impl Default for CharacterTracker {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl CharacterTracker {
     pub fn new() -> Self {
         Self {
@@ -46,9 +52,7 @@ impl CharacterTracker {
     pub fn update_character(&mut self, state: CharacterState) {
         let name = state.name.clone();
         self.states.insert(name.clone(), state);
-        if !self.history.contains_key(&name) {
-            self.history.insert(name, Vec::new());
-        }
+        self.history.entry(name).or_default();
     }
 
     /// 记录角色状态变化
@@ -70,12 +74,12 @@ impl CharacterTracker {
 
         for (name, state) in &self.states {
             context.push_str(&format!(
-                "- {}：位置={}，情感={}，关系={}，修为={:?}，持有物品={}\n",
+                "- {}：位置={}，情感={}，关系={}，核心能力={:?}，持有物品={}\n",
                 name, 
                 state.location, 
                 state.emotional_state,
                 state.relationships.len(), 
-                state.power_level.as_deref().unwrap_or("无"),
+                state.capability_tier.as_deref().unwrap_or("无"),
                 state.inventory.join("、")
             ));
             
@@ -99,7 +103,7 @@ impl CharacterTracker {
         }
         let content = std::fs::read_to_string(path)?;
         let data: TrackerData = serde_json::from_str(&content)
-            .map_err(|e| AppError::Json(e))?;
+            .map_err(AppError::Json)?;
         Ok(Self {
             states: data.states,
             history: data.history,
@@ -126,8 +130,8 @@ impl CharacterTracker {
             report.push_str(&format!("## {}\n\n", name));
             report.push_str(&format!("- **位置**: {}\n", state.location));
             report.push_str(&format!("- **情感状态**: {}\n", state.emotional_state));
-            report.push_str(&format!("- **修为等级**: {}\n", 
-                state.power_level.as_deref().unwrap_or("无")));
+            report.push_str(&format!("- **能力评级**: {}\n", 
+                state.capability_tier.as_deref().unwrap_or("无")));
             report.push_str(&format!("- **成长阶段**: {}\n", state.growth_stage));
             report.push_str(&format!("- **对话风格**: {}\n", state.dialogue_style));
             
@@ -171,7 +175,7 @@ impl CharacterState {
             emotional_state: "平静".to_string(),
             relationships: HashMap::new(),
             inventory: Vec::new(),
-            power_level: None,
+            capability_tier: None,
             dialogue_style: "普通".to_string(),
             growth_stage: "初始".to_string(),
             last_updated_chapter: 0,
@@ -183,8 +187,8 @@ impl CharacterState {
         self
     }
 
-    pub fn with_power_level(mut self, level: &str) -> Self {
-        self.power_level = Some(level.to_string());
+    pub fn with_capability_tier(mut self, level: &str) -> Self {
+        self.capability_tier = Some(level.to_string());
         self
     }
 
