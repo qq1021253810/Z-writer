@@ -4,6 +4,8 @@ server:
 spring:
   application:
     name: zwriter-backend
+  profiles:
+    active: llm
 
   datasource:
     url: jdbc:postgresql://localhost:5432/zwriter
@@ -46,9 +48,14 @@ spring:
 
 # LLM Config
 llm:
+  provider: dashscope
   mock-enabled: false
   max-tokens: 4096
   temperature: 0.8
+  dashscope:
+    api-key: ${DASHSCOPE_API_KEY:sk-ws-H.RPIDRDI.SZsB.MEQCIBP_NEESKY85IHpqDJS3WpD5f-MijSFuLs_FcROV6vdPAiA0hc5Hw2p3qCp2lIoNEkl7-VKqBpUzdB86U7o6oPS2RQ}
+    base-url: https://dashscope.aliyuncs.com/compatible-mode
+    model: qwen-plus
 
 logging:
   level:

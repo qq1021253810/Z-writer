@@ -20,7 +20,7 @@ import java.util.List;
  */
 @Slf4j
 @Service
-@ConditionalOnProperty(name = "llm.mock-enabled", havingValue = "false")
+@ConditionalOnProperty(name = "llm.provider", havingValue = "ollama")
 public class OllamaLlmService implements LlmService {
 
     private final OllamaChatModel chatModel;

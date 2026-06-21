@@ -14,7 +14,7 @@ import java.util.Random;
  */
 @Slf4j
 @Service
-@ConditionalOnProperty(name = "llm.mock-enabled", havingValue = "true", matchIfMissing = true)
+@ConditionalOnProperty(name = "llm.provider", havingValue = "mock", matchIfMissing = true)
 public class MockLlmService implements LlmService {
 
     private static final List<String> SAMPLE_RESPONSES = List.of(

@@ -1,64 +1,63 @@
 @echo off
-chcp 65001 >nul
-title Z-Writer 开发环境启动器
+title Z-Writer Dev Environment Launcher
 
 echo ========================================
-echo    Z-Writer 开发环境启动器
+echo    Z-Writer Dev Environment Launcher
 echo ========================================
 echo.
 
-:: 检查 Docker 是否运行
-echo [1/4] 检查 Docker 状态...
+:: Check Docker
+echo [1/4] Checking Docker...
 docker info >nul 2>&1
 if errorlevel 1 (
-    echo ❌ Docker 未运行，请先启动 Docker Desktop
+    echo [FAIL] Docker is not running. Please start Docker Desktop first.
     pause
     exit /b 1
 )
-echo ✅ Docker 运行正常
+echo [OK] Docker is running
 echo.
 
-:: 启动 Docker 容器
-echo [2/4] 启动基础设施服务 (PostgreSQL, Redis, ChromaDB)...
+:: Start Docker containers
+echo [2/4] Starting infrastructure services (PostgreSQL, Redis, ChromaDB)...
 docker compose up -d
 if errorlevel 1 (
-    echo ❌ Docker 容器启动失败
+    echo [FAIL] Docker containers failed to start
     pause
     exit /b 1
 )
-echo ✅ 基础设施服务已启动
+echo [OK] Infrastructure services started
 echo.
 
-:: 等待服务就绪
-echo 等待服务就绪...
+:: Wait for services
+echo Waiting for services to be ready...
 timeout /t 5 /nobreak >nul
 
-:: 启动后端服务
-echo [3/4] 启动后端服务 (Spring Boot)...
+:: Start backend
+echo [3/4] Starting backend (Spring Boot)...
 cd backend
 start "Z-Writer Backend" cmd /k "mvn spring-boot:run"
 cd ..
-echo ✅ 后端服务启动中 (端口 8080)
+echo [OK] Backend starting on port 8080
 echo.
 
-:: 启动前端服务
-echo [4/4] 启动前端服务 (Vite)...
+:: Start frontend
+echo [4/4] Starting frontend (Vite)...
 cd frontend
 start "Z-Writer Frontend" cmd /k "npm run dev"
 cd ..
-echo ✅ 前端服务启动中 (端口 5173)
+echo [OK] Frontend starting on port 5173
 echo.
 
 echo ========================================
-echo    启动完成！
+echo    All services launched!
 echo ========================================
 echo.
-echo 服务地址:
-echo   - 前端界面: http://localhost:5173
-echo   - 后端 API: http://localhost:8080
-echo   - PostgreSQL: localhost:5432
-echo   - Redis: localhost:6379
-echo   - ChromaDB: localhost:8000
+echo URLs:
+echo   Frontend:    http://localhost:5173
+echo   Backend API: http://localhost:8080
+echo   PostgreSQL:  localhost:5432
+echo   Redis:       localhost:6379
+echo   ChromaDB:    localhost:8000
 echo.
-echo 按任意键关闭此窗口（服务将继续运行）
+echo Press any key to close this window (services will keep running)
 pause >nul

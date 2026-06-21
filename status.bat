@@ -1,51 +1,50 @@
 @echo off
-chcp 65001 >nul
-title Z-Writer 服务状态检查
+title Z-Writer Service Status Check
 
 echo ========================================
-echo    Z-Writer 服务状态检查
+echo    Z-Writer Service Status Check
 echo ========================================
 echo.
 
-:: 检查 Docker
-echo [1/5] Docker 状态:
+:: Check Docker
+echo [1/5] Docker:
 docker info >nul 2>&1
 if errorlevel 1 (
-    echo   ❌ Docker 未运行
+    echo   [FAIL] Docker is not running
 ) else (
-    echo   ✅ Docker 运行正常
+    echo   [OK] Docker is running
 )
 echo.
 
-:: 检查 Docker 容器
-echo [2/5] 容器状态:
+:: Check containers
+echo [2/5] Containers:
 docker ps --filter "name=zwriter" --format "table {{.Names}}\t{{.Status}}"
 echo.
 
-:: 检查后端端口
-echo [3/5] 后端服务 (8080):
+:: Check backend port
+echo [3/5] Backend (8080):
 netstat -ano | findstr ":8080" | findstr "LISTENING" >nul 2>&1
 if errorlevel 1 (
-    echo   ❌ 后端服务未运行
+    echo   [FAIL] Backend is not running
 ) else (
-    echo   ✅ 后端服务运行中
+    echo   [OK] Backend is running
 )
 echo.
 
-:: 检查前端端口
-echo [4/5] 前端服务 (5173):
+:: Check frontend port
+echo [4/5] Frontend (5173):
 netstat -ano | findstr ":5173" | findstr "LISTENING" >nul 2>&1
 if errorlevel 1 (
-    echo   ❌ 前端服务未运行
+    echo   [FAIL] Frontend is not running
 ) else (
-    echo   ✅ 前端服务运行中
+    echo   [OK] Frontend is running
 )
 echo.
 
-:: 显示访问地址
-echo [5/5] 访问地址:
-echo   - 前端界面: http://localhost:5173
-echo   - 后端 API: http://localhost:8080
+:: URLs
+echo [5/5] Access URLs:
+echo   Frontend:    http://localhost:5173
+echo   Backend API: http://localhost:8080
 echo.
 
 pause

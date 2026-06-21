@@ -47,6 +47,12 @@
             <artifactId>spring-ai-starter-model-ollama</artifactId>
         </dependency>
 
+        <!-- Spring AI - OpenAI (for DashScope/百炼 compatible API) -->
+        <dependency>
+            <groupId>org.springframework.ai</groupId>
+            <artifactId>spring-ai-starter-model-openai</artifactId>
+        </dependency>
+
         <!-- Spring AI - Chroma -->
         <dependency>
             <groupId>org.springframework.ai</groupId>

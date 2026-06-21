@@ -1,0 +1,168 @@
+{
+  "novel_id": "共生进化",
+  "volumes": [
+    {
+      "volume_num": 1,
+      "title": "觉醒",
+      "summary": "陆沉从绝症流浪汉到能力觉醒的过程。经历非法实验、身体变异、能力探索，最终在街头崭露头角，引起暗影生物注意。",
+      "chapters": []
+    }
+  ],
+  "foreshadows": [
+    {
+      "id": "fs_001",
+      "description": "Ad-ALK-Vec 病毒的真实来源",
+      "planted_chapter": 15,
+      "expected_resolve": 105,
+      "actual_resolve": null,
+      "status": "active"
+    },
+    {
+      "id": "fs_002",
+      "description": "李医生与暗影生物的关系",
+      "planted_chapter": 11,
+      "expected_resolve": 60,
+      "actual_resolve": null,
+      "status": "active"
+    },
+    {
+      "id": "fs_003",
+      "description": "陆沉的生物学背景与能力觉醒的关联",
+      "planted_chapter": 25,
+      "expected_resolve": 150,
+      "actual_resolve": null,
+      "status": "active"
+    },
+    {
+      "id": "fs_004",
+      "description": "街头健身习惯成为维持共生体系的关键",
+      "planted_chapter": 5,
+      "expected_resolve": 35,
+      "actual_resolve": null,
+      "status": "active"
+    },
+    {
+      "id": "fs_005",
+      "description": "清道夫组织的真实目的",
+      "planted_chapter": 85,
+      "expected_resolve": 195,
+      "actual_resolve": null,
+      "status": "active"
+    },
+    {
+      "id": "fs_006",
+      "description": "觉醒者联盟创始人的身份",
+      "planted_chapter": 70,
+      "expected_resolve": 200,
+      "actual_resolve": null,
+      "status": "active"
+    },
+    {
+      "id": "fs_007",
+      "description": "VOF 理论的最终目标：人类进化",
+      "planted_chapter": 105,
+      "expected_resolve": 280,
+      "actual_resolve": null,
+      "status": "active"
+    },
+    {
+      "id": "fs_008",
+      "description": "林小雅知道陆沉秘密后的选择",
+      "planted_chapter": 45,
+      "expected_resolve": 320,
+      "actual_resolve": null,
+      "status": "active"
+    }
+  ],
+  "character_arcs": {
+    "陆沉": {
+      "initial_state": "绝症晚期，流浪街头，绝望求生",
+      "key_changes": [
+        {
+          "chapter": 15,
+          "change": "接受非法实验，命运转折",
+          "type": "plot"
+        },
+        {
+          "chapter": 25,
+          "change": "发现身体变异，从绝望到希望",
+          "type": "emotional"
+        },
+        {
+          "chapter": 35,
+          "change": "理解能力代价，建立乳酸循环机制",
+          "type": "ability"
+        },
+        {
+          "chapter": 45,
+          "change": "第一次对抗暗影生物，从被动到主动",
+          "type": "plot"
+        }
+      ],
+      "current_state": "能力觉醒，开始追查真相"
+    }
+  },
+  "key_events": [
+    {
+      "chapter": 1,
+      "event": "陆沉流落成都街头，靠捡废品生存",
+      "importance": "high"
+    },
+    {
+      "chapter": 5,
+      "event": "在街头健身中找到慰藉，形成每日习惯",
+      "importance": "medium"
+    },
+    {
+      "chapter": 11,
+      "event": "李医生介绍临床试验，陆沉被带到山区工厂",
+      "importance": "high"
+    },
+    {
+      "chapter": 15,
+      "event": "接受 Ad-ALK-Vec 病毒注射，实验失败被丢弃",
+      "importance": "critical"
+    },
+    {
+      "chapter": 25,
+      "event": "发现身体变异：力量暴增、数学能力觉醒",
+      "importance": "critical"
+    },
+    {
+      "chapter": 35,
+      "event": "理解能力代价机制，建立乳酸循环",
+      "importance": "high"
+    },
+    {
+      "chapter": 45,
+      "event": "街头健身圈崭露头角，遭遇暗影生物试探",
+      "importance": "high"
+    }
+  ],
+  "timeline": {
+    "start_date": "2024-03-15",
+    "current_date": "2024-06-20",
+    "key_dates": [
+      {
+        "date": "2024-03-15",
+        "event": "陆沉流落成都街头"
+      },
+      {
+        "date": "2024-04-10",
+        "event": "接受非法实验"
+      },
+      {
+        "date": "2024-04-25",
+        "event": "发现身体变异"
+      },
+      {
+        "date": "2024-05-15",
+        "event": "理解能力代价"
+      },
+      {
+        "date": "2024-06-20",
+        "event": "街头崭露头角"
+      }
+    ]
+  }
+}
