@@ -34,11 +34,9 @@ public class WorkflowController {
     @PostMapping("/create-novel")
     public Map<String, Object> createNovel(@RequestBody CreateNovelWorkflow.CreateNovelRequest request) {
         log.info("收到新建小说请求: title={}, genre={}", request.getTitle(), request.getGenre());
-        
-        long startTime = System.currentTimeMillis();
+
         CreateNovelWorkflow.WorkflowResult result = createNovelWorkflow.execute(request);
-        long duration = System.currentTimeMillis() - startTime;
-        
+
         Map<String, Object> response = new HashMap<>();
         response.put("success", result.isSuccess());
         response.put("novelId", result.getNovelId());
@@ -48,23 +46,21 @@ public class WorkflowController {
         response.put("outline", result.getOutline());
         response.put("golden3Design", result.getGolden3Design());
         response.put("errorMessage", result.getErrorMessage());
-        response.put("durationMs", duration);
-        
+        response.put("durationMs", result.getDurationMs());
+
         return response;
     }
-    
+
     /**
      * 续写章节工作流
      */
     @PostMapping("/continue-chapter")
     public Map<String, Object> continueChapter(@RequestBody ContinueChapterWorkflow.ContinueChapterRequest request) {
-        log.info("收到续写章节请求: novelId={}, volume={}, chapter={}", 
+        log.info("收到续写章节请求: novelId={}, volume={}, chapter={}",
                 request.getNovelId(), request.getVolumeNumber(), request.getChapterNumber());
-        
-        long startTime = System.currentTimeMillis();
+
         ContinueChapterWorkflow.WorkflowResult result = continueChapterWorkflow.execute(request);
-        long duration = System.currentTimeMillis() - startTime;
-        
+
         Map<String, Object> response = new HashMap<>();
         response.put("success", result.isSuccess());
         response.put("chapterId", result.getChapterId());
@@ -75,22 +71,20 @@ public class WorkflowController {
         response.put("complianceResult", result.getComplianceResult());
         response.put("wordCount", result.getWordCount());
         response.put("errorMessage", result.getErrorMessage());
-        response.put("durationMs", duration);
-        
+        response.put("durationMs", result.getDurationMs());
+
         return response;
     }
-    
+
     /**
      * 卡文修复工作流
      */
     @PostMapping("/fix-writer-block")
     public Map<String, Object> fixWriterBlock(@RequestBody FixWriterBlockWorkflow.FixWriterBlockRequest request) {
         log.info("收到卡文修复请求: novelId={}", request.getNovelId());
-        
-        long startTime = System.currentTimeMillis();
+
         FixWriterBlockWorkflow.WorkflowResult result = fixWriterBlockWorkflow.execute(request);
-        long duration = System.currentTimeMillis() - startTime;
-        
+
         Map<String, Object> response = new HashMap<>();
         response.put("success", result.isSuccess());
         response.put("analysis", result.getAnalysis());
@@ -98,8 +92,8 @@ public class WorkflowController {
         response.put("rewrittenContent", result.getRewrittenContent());
         response.put("polishedContent", result.getPolishedContent());
         response.put("errorMessage", result.getErrorMessage());
-        response.put("durationMs", duration);
-        
+        response.put("durationMs", result.getDurationMs());
+
         return response;
     }
 }

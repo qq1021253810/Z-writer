@@ -64,16 +64,19 @@ public class ControllerAgent {
         
         try {
             // 1. 上下文统筹：为子Agent准备完整上下文
-            if (input.getNovelId() != null) {
+            if (input.getNovelId() != null && input.getParams() != null) {
+                Map<String, Object> params = input.getParams();
+                int volumeNumber = params.containsKey("volumeNumber")
+                        ? ((Number) params.get("volumeNumber")).intValue() : 1;
+                int chapterNumber = params.containsKey("chapterNumber")
+                        ? ((Number) params.get("chapterNumber")).intValue() : 1;
                 String context = contextService.getChapterContext(
-                    input.getNovelId(), 
-                    (Integer) input.getParams().getOrDefault("volumeNumber", 1),
-                    (Integer) input.getParams().getOrDefault("chapterNumber", 1)
+                    input.getNovelId(), volumeNumber, chapterNumber
                 );
                 // 将上下文注入params供子Agent使用
-                Map<String, Object> params = new HashMap<>(input.getParams());
-                params.put("globalContext", context);
-                input.setParams(params);
+                Map<String, Object> newParams = new HashMap<>(params);
+                newParams.put("globalContext", context);
+                input.setParams(newParams);
             }
             
             // 2. 路由到对应Agent执行

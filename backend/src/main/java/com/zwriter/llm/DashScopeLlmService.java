@@ -103,7 +103,8 @@ public class DashScopeLlmService implements LlmService {
                         if (!content.isEmpty()) {
                             fullContent.append(content);
                         }
-                    } catch (Exception ignored) {
+                    } catch (Exception e) {
+                        log.debug("[DashScope] 解析chunk失败: {}", data, e);
                     }
                 }
             }

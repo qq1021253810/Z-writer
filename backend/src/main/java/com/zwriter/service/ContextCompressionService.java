@@ -37,6 +37,15 @@ public class ContextCompressionService {
 
     private static final DateTimeFormatter TIME_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm");
 
+    /** 内容短于此长度时直接返回，不调用LLM摘要 */
+    private static final int SHORT_CONTENT_THRESHOLD = 500;
+
+    /** LLM摘要失败时的降级截断长度 */
+    private static final int FALLBACK_TRUNCATE_LENGTH = 200;
+
+    /** 时间线事件最大显示数量 */
+    private static final int TIMELINE_EVENT_LIMIT = 20;
+
     /**
      * 获取小说前情提要（使用LLM生成摘要）
      */
@@ -76,7 +85,7 @@ public class ContextCompressionService {
         }
 
         // 如果内容较短，直接返回
-        if (content.length() <= 500) {
+        if (content.length() <= SHORT_CONTENT_THRESHOLD) {
             return content;
         }
 
@@ -86,8 +95,8 @@ public class ContextCompressionService {
             return llmService.chat(prompt, systemPrompt);
         } catch (Exception e) {
             log.warn("[ContextCompression] LLM摘要生成失败，使用截断方式", e);
-            // 降级处理：截取前200字
-            return content.substring(0, Math.min(200, content.length())) + "...";
+            // 降级处理：截取前N字
+            return content.substring(0, Math.min(FALLBACK_TRUNCATE_LENGTH, content.length())) + "...";
         }
     }
 
@@ -176,8 +185,8 @@ public class ContextCompressionService {
         StringBuilder timeline = new StringBuilder();
         timeline.append("【时间线】\n\n");
 
-        // 只显示最近20个事件，避免上下文过长
-        int limit = Math.min(timelines.size(), 20);
+        // 只显示最近N个事件，避免上下文过长
+        int limit = Math.min(timelines.size(), TIMELINE_EVENT_LIMIT);
         for (int i = 0; i < limit; i++) {
             PlotTimeline event = timelines.get(i);
             timeline.append(String.format("▶ %s [%s]\n",
@@ -191,8 +200,8 @@ public class ContextCompressionService {
             timeline.append("\n");
         }
 
-        if (timelines.size() > 20) {
-            timeline.append("... 还有 ").append(timelines.size() - 20).append(" 个早期事件\n");
+        if (timelines.size() > TIMELINE_EVENT_LIMIT) {
+            timeline.append("... 还有 ").append(timelines.size() - TIMELINE_EVENT_LIMIT).append(" 个早期事件\n");
         }
 
         return timeline.toString();

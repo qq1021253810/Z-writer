@@ -24,6 +24,9 @@ public class ForeshadowService {
     private final ForeshadowRepository foreshadowRepository;
     private final CharacterRepository characterRepository;
 
+    /** 伏笔超期阈值：未设定回收章节时，埋设章节距当前章节超过此值视为超期 */
+    private static final int OVERDUE_THRESHOLD = 50;
+
     /**
      * 添加伏笔
      */
@@ -124,8 +127,8 @@ public class ForeshadowService {
                     if (f.getPayoffChapter() != null && currentChapter > f.getPayoffChapter()) {
                         return true;
                     }
-                    // 如果未设定回收章节，但埋设章节距当前章节差距过大（超过50章），视为超期
-                    if (f.getPayoffChapter() == null && (currentChapter - f.getSetupChapter()) > 50) {
+                    // 如果未设定回收章节，但埋设章节距当前章节差距过大，视为超期
+                    if (f.getPayoffChapter() == null && (currentChapter - f.getSetupChapter()) > OVERDUE_THRESHOLD) {
                         return true;
                     }
                     return false;

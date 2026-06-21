@@ -20,6 +20,12 @@ public class PlagiarismDetector {
     /** 默认相似片段阈值 */
     private static final double DEFAULT_THRESHOLD = 0.3;
 
+    /** 高风险阈值：相似度 >= 此值视为高风险 */
+    private static final double HIGH_RISK_THRESHOLD = 0.6;
+
+    /** 中风险阈值：相似度 >= 此值且 < HIGH_RISK_THRESHOLD 视为中风险 */
+    private static final double MEDIUM_RISK_THRESHOLD = 0.3;
+
     /**
      * 检测文本与语料库的重复度
      * @param text 待检测文本
@@ -200,9 +206,9 @@ public class PlagiarismDetector {
      * @return 风险等级（低风险/中风险/高风险）
      */
     private String determineRiskLevel(double similarity) {
-        if (similarity >= 0.6) {
+        if (similarity >= HIGH_RISK_THRESHOLD) {
             return "高风险";
-        } else if (similarity >= 0.3) {
+        } else if (similarity >= MEDIUM_RISK_THRESHOLD) {
             return "中风险";
         } else {
             return "低风险";
