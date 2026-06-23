@@ -84,17 +84,34 @@ impl L3MaterialStore {
         self.materials.push(material);
     }
 
-    /// 搜索素材（简单余弦相似度 - 阶段三将替换为 usearch）
+    /// 搜索素材（优化：使用部分排序而非全排序）
     pub fn search(&self, query_embedding: &[f32], top_k: usize) -> Vec<&Material> {
-        let mut scored: Vec<(f32, &Material)> = self.materials.iter()
+        if top_k == 0 || self.materials.is_empty() {
+            return Vec::new();
+        }
+
+        let scored: Vec<(f32, &Material)> = self.materials.iter()
             .map(|m| {
                 let score = cosine_similarity(query_embedding, &m.embedding);
                 (score, m)
             })
             .collect();
 
-        scored.sort_by(|a, b| b.0.partial_cmp(&a.0).expect("浮点数比较失败"));
-        scored.into_iter().take(top_k).map(|(_, m)| m).collect()
+        // 使用选择算法：只排序前 top_k 个元素
+        let mut scored = scored;
+        let k = top_k.min(scored.len());
+        
+        // 部分排序：将前 k 个最大元素放到前面
+        scored.select_nth_unstable_by(k - 1, |a, b| {
+            b.0.partial_cmp(&a.0).expect("浮点数比较失败")
+        });
+        
+        // 对前 k 个元素进行完整排序
+        scored[..k].sort_by(|a, b| {
+            b.0.partial_cmp(&a.0).expect("浮点数比较失败")
+        });
+        
+        scored[..k].iter().map(|(_, m)| *m).collect()
     }
 
     /// 按分类搜索

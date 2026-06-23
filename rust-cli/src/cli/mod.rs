@@ -19,6 +19,24 @@ use crate::context::context_manager::ContextManager;
 /// 常用提示信息
 const MSG_NO_NOVEL_SELECTED: &str = "请先使用 /use <小说名> 切换到小说";
 
+/// 执行 Agent 命令并处理结果（统一错误处理）
+async fn execute_agent_with_feedback<F>(
+    success_msg: &str,
+    operation: F,
+) -> Result<()>
+where
+    F: std::future::Future<Output = Result<()>>,
+{
+    match operation.await {
+        Ok(_) => println!("{}", success_msg.green()),
+        Err(e) => {
+            tracing::error!("[CLI] 操作失败: {}", e);
+            println!("{}", format!("错误: {}", e).red());
+        }
+    }
+    Ok(())
+}
+
 /// 命令解析
 pub enum Command {
     Help,
@@ -186,13 +204,7 @@ pub async fn run_repl(config: AppConfig) -> Result<()> {
                     Command::Continue => {
                         tracing::info!("[CLI] 执行 continue 命令");
                         if let Some(ref ws) = current_workspace {
-                            match run_agent_command(ws, &llm_client, &mut ctx_manager, "continue", "").await {
-                                Ok(_) => println!("{}", "续写完成".green()),
-                                Err(e) => {
-                                    tracing::error!("[CLI] 操作失败: {}", e);
-                                    println!("{}", format!("错误: {}", e).red());
-                                }
-                            }
+                            execute_agent_with_feedback("续写完成", run_agent_command(ws, &llm_client, &mut ctx_manager, "continue", "")).await?;
                         } else {
                             println!("{}", MSG_NO_NOVEL_SELECTED.yellow());
                         }
@@ -200,13 +212,7 @@ pub async fn run_repl(config: AppConfig) -> Result<()> {
                     Command::Fix => {
                         tracing::info!("[CLI] 执行 fix 命令");
                         if let Some(ref ws) = current_workspace {
-                            match run_agent_command(ws, &llm_client, &mut ctx_manager, "fix", "").await {
-                                Ok(_) => println!("{}", "卡文修复完成".green()),
-                                Err(e) => {
-                                    tracing::error!("[CLI] 操作失败: {}", e);
-                                    println!("{}", format!("错误: {}", e).red());
-                                }
-                            }
+                            execute_agent_with_feedback("卡文修复完成", run_agent_command(ws, &llm_client, &mut ctx_manager, "fix", "")).await?;
                         } else {
                             println!("{}", MSG_NO_NOVEL_SELECTED.yellow());
                         }
@@ -215,13 +221,7 @@ pub async fn run_repl(config: AppConfig) -> Result<()> {
                         tracing::info!("[CLI] 执行 polish 命令");
                         if let Some(ref ws) = current_workspace {
                             let user_input = read_user_input_for_polish(ws);
-                            match run_agent_command(ws, &llm_client, &mut ctx_manager, "polish", &user_input).await {
-                                Ok(_) => println!("{}", "润色完成".green()),
-                                Err(e) => {
-                                    tracing::error!("[CLI] 操作失败: {}", e);
-                                    println!("{}", format!("错误: {}", e).red());
-                                }
-                            }
+                            execute_agent_with_feedback("润色完成", run_agent_command(ws, &llm_client, &mut ctx_manager, "polish", &user_input)).await?;
                         } else {
                             println!("{}", MSG_NO_NOVEL_SELECTED.yellow());
                         }
@@ -231,13 +231,7 @@ pub async fn run_repl(config: AppConfig) -> Result<()> {
                         if let Some(ref ws) = current_workspace {
                             println!("{}", "请输入世界观设计需求（如：设计一个近未来科技商业帝国的规则体系）：".cyan());
                             let user_input = read_multiline(&mut rl)?;
-                            match run_agent_command(ws, &llm_client, &mut ctx_manager, "world", &user_input).await {
-                                Ok(_) => println!("{}", "世界观设计完成".green()),
-                                Err(e) => {
-                                    tracing::error!("[CLI] 操作失败: {}", e);
-                                    println!("{}", format!("错误: {}", e).red());
-                                }
-                            }
+                            execute_agent_with_feedback("世界观设计完成", run_agent_command(ws, &llm_client, &mut ctx_manager, "world", &user_input)).await?;
                         } else {
                             println!("{}", MSG_NO_NOVEL_SELECTED.yellow());
                         }
@@ -247,13 +241,7 @@ pub async fn run_repl(config: AppConfig) -> Result<()> {
                         if let Some(ref ws) = current_workspace {
                             println!("{}", "请输入角色设计需求（如：设计一个白手起家的科技创业者角色）：".cyan());
                             let user_input = read_multiline(&mut rl)?;
-                            match run_agent_command(ws, &llm_client, &mut ctx_manager, "character", &user_input).await {
-                                Ok(_) => println!("{}", "角色设计完成".green()),
-                                Err(e) => {
-                                    tracing::error!("[CLI] 操作失败: {}", e);
-                                    println!("{}", format!("错误: {}", e).red());
-                                }
-                            }
+                            execute_agent_with_feedback("角色设计完成", run_agent_command(ws, &llm_client, &mut ctx_manager, "character", &user_input)).await?;
                         } else {
                             println!("{}", MSG_NO_NOVEL_SELECTED.yellow());
                         }
@@ -262,13 +250,7 @@ pub async fn run_repl(config: AppConfig) -> Result<()> {
                         tracing::info!("[CLI] 执行 compliance 命令");
                         if let Some(ref ws) = current_workspace {
                             let user_input = read_user_input_for_compliance(ws);
-                            match run_agent_command(ws, &llm_client, &mut ctx_manager, "compliance", &user_input).await {
-                                Ok(_) => println!("{}", "合规检测完成".green()),
-                                Err(e) => {
-                                    tracing::error!("[CLI] 操作失败: {}", e);
-                                    println!("{}", format!("错误: {}", e).red());
-                                }
-                            }
+                            execute_agent_with_feedback("合规检测完成", run_agent_command(ws, &llm_client, &mut ctx_manager, "compliance", &user_input)).await?;
                         } else {
                             println!("{}", MSG_NO_NOVEL_SELECTED.yellow());
                         }
