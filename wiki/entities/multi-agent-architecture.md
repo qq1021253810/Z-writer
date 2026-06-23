@@ -87,6 +87,9 @@ public abstract class BaseAgent {
 - [[workflow-system]] - 工作流系统
 - [[external-tool-plugins]] - 外部工具插件
 - [[vector-knowledge-service]] - 向量知识服务
+- [[rust-cli-architecture]] - Rust CLI 架构（7 个 Agent 的 Rust 实现）
+- [[hybrid-rag-storage]] - Rust CLI 的混合 RAG 存储
+- [[context-management]] - Rust CLI 的上下文管理
 
 ## Open Questions
 

@@ -113,13 +113,22 @@ impl TokenTracker {
     }
 }
 
+/// 创建共享的 HTTP 客户端（全局复用连接池）
+fn create_http_client() -> Client {
+    Client::builder()
+        .pool_max_idle_per_host(4)
+        .timeout(Duration::from_secs(120))
+        .build()
+        .unwrap_or_else(|_| Client::new())
+}
+
 /// Ollama 客户端
 #[derive(Clone)]
 pub struct OllamaClient {
     base_url: String,
     chat_model: String,
     embed_model: String,
-    client: Client,
+    client: Arc<Client>,
 }
 
 /// DashScope (百炼) 客户端 - 通过 OpenAI 兼容接口调用
@@ -128,7 +137,7 @@ pub struct DashScopeClient {
     base_url: String,
     api_key: String,
     model: String,
-    client: Client,
+    client: Arc<Client>,
 }
 
 /// 统一 LLM 客户端 - 根据配置自动选择提供商
@@ -188,37 +197,11 @@ struct OpenAIUsage {
     completion_tokens: u64,
 }
 
-/// Ollama 原生格式的聊天响应（用于获取 token 统计）
-#[derive(Debug, Deserialize)]
-#[allow(dead_code)]
-struct OllamaNativeChatResponse {
-    #[serde(default)]
-    message: Option<ChatMessage>,
-    #[serde(default)]
-    prompt_eval_count: u64,
-    #[serde(default)]
-    eval_count: u64,
-}
-
 /// 嵌入请求 (Ollama 格式)
 #[derive(Debug, Serialize)]
 struct OllamaEmbedRequest {
     model: String,
     prompt: String,
-}
-
-/// 嵌入请求 (OpenAI/DashScope 格式)
-#[derive(Debug, Serialize)]
-#[allow(dead_code)]
-struct OpenAIEmbedRequest {
-    model: String,
-    input: OpenAIEmbedInput,
-}
-
-#[derive(Debug, Serialize)]
-#[allow(dead_code)]
-struct OpenAIEmbedInput {
-    texts: Vec<String>,
 }
 
 /// 嵌入响应 (Ollama 格式)
@@ -315,7 +298,7 @@ impl OllamaClient {
             base_url: config.ollama_url.clone(),
             chat_model: config.chat_model.clone(),
             embed_model: config.embed_model.clone(),
-            client: Client::new(),
+            client: Arc::new(create_http_client()),
         }
     }
 
@@ -444,7 +427,7 @@ impl DashScopeClient {
             base_url: config.dashscope.base_url.clone(),
             api_key: config.dashscope.api_key.clone(),
             model: config.dashscope.model.clone(),
-            client: Client::new(),
+            client: Arc::new(create_http_client()),
         }
     }
 

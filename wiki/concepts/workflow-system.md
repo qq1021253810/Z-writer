@@ -89,6 +89,17 @@ public abstract class BaseWorkflow<REQ, RES extends BaseWorkflowResult> {
 
 **BaseWorkflowResult**：包含 success、errorMessage、durationMs、wordCountResult、bannedWordResult、extensions
 
+## Rust CLI 工作流实现
+
+Rust CLI 实现了与 Java 后端不同定位的工作流：
+
+| 工作流 | 文件 | 用途 | 调用 Agent |
+|--------|------|------|------------|
+| CreateNovelWorkflow | `rust-cli/src/workflows/create_novel.rs` | 交互式新建小说（多轮 Agent 对话引导） | WorldOutlineAgent + CharacterAgent + PlotAgent |
+| FixWriterBlockWorkflow | `rust-cli/src/workflows/fix_writer_block.rs` | 卡文修复：分析+生成方案+重写 | PlotAgent |
+
+CLI 的 `/create` 和 `/fix` 命令分别对应这两个工作流。详见 [[cli-commands]]。
+
 ## Related Pages
 
 - [[multi-agent-architecture]] - 多智能体架构
@@ -96,6 +107,8 @@ public abstract class BaseWorkflow<REQ, RES extends BaseWorkflowResult> {
 - [[vector-knowledge-service]] - 向量知识服务
 - [[context-service-layer]] - 上下文服务层
 - [[data-model]] - 数据模型层
+- [[rust-cli-architecture]] - Rust CLI 架构
+- [[cli-commands]] - CLI 命令参考
 
 ## Open Questions
 
