@@ -3,8 +3,6 @@ package com.zwriter.workflow.base;
 import com.zwriter.agent.base.AgentInput;
 import com.zwriter.agent.base.AgentResult;
 import com.zwriter.agent.controller.ControllerAgent;
-import com.zwriter.tool.BannedWordTool;
-import com.zwriter.tool.WordCountTool;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 
@@ -13,7 +11,7 @@ import java.util.Map;
 
 /**
  * 工作流抽象基类
- * 提供通用的Agent调用、错误处理、日志记录、内容检测等功能
+ * 提供通用的Agent调用、错误处理、日志记录等功能
  * 使用模板方法模式统一工作流执行流程
  *
  * @param <REQ> 请求参数类型
@@ -24,12 +22,6 @@ public abstract class BaseWorkflow<REQ, RES extends BaseWorkflowResult> {
 
     @Autowired
     protected ControllerAgent controllerAgent;
-
-    @Autowired
-    protected WordCountTool wordCountTool;
-
-    @Autowired
-    protected BannedWordTool bannedWordTool;
 
     /**
      * 执行工作流（模板方法，final防止子类覆盖）
@@ -115,35 +107,5 @@ public abstract class BaseWorkflow<REQ, RES extends BaseWorkflowResult> {
      */
     protected String callAgent(Long novelId, String taskType, String defaultFailureMessage) {
         return callAgent(novelId, taskType, new HashMap<>(), defaultFailureMessage);
-    }
-
-    // ==================== 内容检测 ====================
-
-    /**
-     * 执行字数统计
-     */
-    protected WordCountTool.WordCountResult performWordCount(String content) {
-        WordCountTool.WordCountResult result = wordCountTool.countWords(content);
-        log.info("[{}] 字数统计: 总字数={}, 中文字数={}",
-                getWorkflowName(), result.totalWords(), result.chineseCount());
-        return result;
-    }
-
-    /**
-     * 执行违禁词检测
-     */
-    protected BannedWordTool.BannedWordResult performBannedWordCheck(String content) {
-        BannedWordTool.BannedWordResult result = bannedWordTool.detect(content);
-        log.info("[{}] 违禁词检测: 合规={}, 风险等级={}",
-                getWorkflowName(), result.isCompliant(), result.riskLevel());
-        return result;
-    }
-
-    /**
-     * 同时执行字数统计和违禁词检测，并设置到Builder中
-     */
-    protected void performContentChecks(String content, BaseWorkflowResult.Builder<?> builder) {
-        builder.wordCountResult(performWordCount(content))
-               .bannedWordResult(performBannedWordCheck(content));
     }
 }

@@ -1,5 +1,6 @@
 package com.zwriter.agent.compliance;
 
+import com.zwriter.agent.base.AgentContext;
 import com.zwriter.agent.base.AgentInput;
 import com.zwriter.agent.base.AgentResult;
 import com.zwriter.agent.base.BaseAgent;
@@ -18,8 +19,13 @@ import java.util.Map;
 public class ComplianceAgent extends BaseAgent {
 
     @Override
-    public String getName() {
+    public String name() {
         return "合规&网文运营 Agent";
+    }
+
+    @Override
+    public String getName() {
+        return name();
     }
 
     @Override
@@ -134,6 +140,93 @@ public class ComplianceAgent extends BaseAgent {
         data.put("content", response);
         
         return AgentResult.success(response, data);
+    }
+    
+    /**
+     * 新版接口（AgentContext）
+     */
+    @Override
+    protected AgentResult doExecute(AgentContext ctx) throws Exception {
+        String subTask = getSubTask(ctx, "check");
+        
+        return switch (subTask) {
+            case "check" -> complianceCheck(ctx);
+            case "tags" -> optimizeTags(ctx);
+            case "summary" -> generateSummary(ctx);
+            default -> AgentResult.failure("未知的子任务: " + subTask);
+        };
+    }
+
+    private AgentResult complianceCheck(AgentContext ctx) {
+        String chapterContent = getParam(ctx, "chapterContent", "");
+        String prompt = String.format("""
+                请对以下章节内容进行合规审查：
+                
+                章节内容:
+                %s
+                
+                审查维度：
+                1. 政治敏感内容
+                2. 色情/暴力描写
+                3. 违禁词/敏感词
+                4. 价值观导向
+                5. 宗教/民族相关
+                6. 其他违规风险
+                
+                需要输出：
+                - 是否合规（通过/不通过）
+                - 风险点列表（如有）
+                - 风险等级（高/中/低）
+                - 修改建议
+                
+                请以 Markdown 格式输出。
+                """, chapterContent);
+        String response = callLlm(prompt);
+        return AgentResult.success(response, Map.of("type", "check", "content", response));
+    }
+    
+    private AgentResult optimizeTags(AgentContext ctx) {
+        String novelInfo = getParam(ctx, "novelInfo", "");
+        String prompt = String.format("""
+                请为以下小说优化标签：
+                
+                小说信息:
+                %s
+                
+                需要输出：
+                1. 主标签（1-2 个，如：玄幻、都市）
+                2. 副标签（3-5 个，如：升级、热血、系统）
+                3. 搜索关键词（5-10 个）
+                4. 标签优化建议
+                
+                请以 Markdown 格式输出。
+                """, novelInfo);
+        String response = callLlm(prompt);
+        return AgentResult.success(response, Map.of("type", "tags", "content", response));
+    }
+    
+    private AgentResult generateSummary(AgentContext ctx) {
+        String novelInfo = getParam(ctx, "novelInfo", "");
+        String prompt = String.format("""
+                请为以下小说生成简介：
+                
+                小说信息:
+                %s
+                
+                需要生成 3 个版本：
+                1. 短版（50 字以内，适合列表展示）
+                2. 中版（150 字以内，适合详情页）
+                3. 长版（300 字以内，适合推荐位）
+                
+                要求：
+                - 突出核心卖点
+                - 设置悬念吸引点击
+                - 符合网文简介风格
+                
+                请以 Markdown 格式输出。
+                """, novelInfo);
+        String response = callLlm(prompt);
+        return AgentResult.success(response, Map.of("type", "summary", "content", response));
     }
     
     @Override

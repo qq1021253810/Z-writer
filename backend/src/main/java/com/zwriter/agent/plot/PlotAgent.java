@@ -1,5 +1,6 @@
 package com.zwriter.agent.plot;
 
+import com.zwriter.agent.base.AgentContext;
 import com.zwriter.agent.base.AgentInput;
 import com.zwriter.agent.base.AgentResult;
 import com.zwriter.agent.base.BaseAgent;
@@ -18,8 +19,13 @@ import java.util.Map;
 public class PlotAgent extends BaseAgent {
 
     @Override
-    public String getName() {
+    public String name() {
         return "剧情爽点节奏 Agent";
+    }
+
+    @Override
+    public String getName() {
+        return name();
     }
 
     @Override
@@ -167,6 +173,125 @@ public class PlotAgent extends BaseAgent {
         data.put("content", response);
         
         return AgentResult.success(response, data);
+    }
+    
+    /**
+     * 新版接口（AgentContext）
+     */
+    @Override
+    protected AgentResult doExecute(AgentContext ctx) throws Exception {
+        String subTask = getSubTask(ctx, "golden3");
+        
+        return switch (subTask) {
+            case "golden3" -> designGolden3(ctx);
+            case "rhythm" -> planRhythm(ctx);
+            case "poison" -> avoidPoison(ctx);
+            case "emotion" -> controlEmotion(ctx);
+            case "analysis" -> analyzeWriterBlock(ctx);
+            default -> AgentResult.failure("未知的子任务: " + subTask);
+        };
+    }
+
+    private AgentResult designGolden3(AgentContext ctx) {
+        String outline = getParam(ctx, "outline", "");
+        String genre = getParam(ctx, "genre", "");
+        String prompt = String.format("""
+                请为以下小说设计黄金三章：
+                
+                小说类型: %s
+                大纲:
+                %s
+                
+                黄金三章要求：
+                1. 第一章：快速引入主角，展示核心冲突，设置悬念
+                2. 第二章：展现主角特殊性，制造第一个爽点
+                3. 第三章：扩大冲突，展示世界观，留下钩子
+                
+                需要输出：
+                - 每章核心事件
+                - 爽点设计
+                - 悬念设置
+                - 字数建议（每章 2000-3000 字）
+                
+                请以 Markdown 格式输出。
+                """, genre, outline);
+        String response = callLlm(prompt);
+        return AgentResult.success(response, Map.of("type", "golden3", "content", response));
+    }
+    
+    private AgentResult planRhythm(AgentContext ctx) {
+        String outline = getParam(ctx, "outline", "");
+        String prompt = String.format("""
+                请为以下小说规划爽点节奏：
+                
+                大纲:
+                %s
+                
+                需要输出：
+                1. 爽点类型分布（打脸、升级、获宝、复仇等）
+                2. 爽点间隔（每 3-5 章一个小爽点，每 15-20 章一个大爽点）
+                3. 爽点强度曲线（逐步升级）
+                4. 高潮节点设计
+                
+                请以 Markdown 表格形式输出。
+                """, outline);
+        String response = callLlm(prompt);
+        return AgentResult.success(response, Map.of("type", "rhythm", "content", response));
+    }
+    
+    private AgentResult avoidPoison(AgentContext ctx) {
+        String chapterContent = getParam(ctx, "chapterContent", "");
+        String prompt = String.format("""
+                请检查以下章节内容是否存在毒点：
+                
+                章节内容:
+                %s
+                
+                常见毒点：
+                1. 主角过于圣母/懦弱
+                2. 女角色过度依赖男主
+                3. 逻辑硬伤
+                4. 节奏拖沓
+                5. 强行降智
+                6. 过度说教
+                
+                需要输出：
+                - 发现的毒点（如有）
+                - 毒点严重程度（1-10）
+                - 修改建议
+                
+                请以 Markdown 格式输出。
+                """, chapterContent);
+        String response = callLlm(prompt);
+        return AgentResult.success(response, Map.of("type", "poison", "content", response));
+    }
+    
+    private AgentResult controlEmotion(AgentContext ctx) {
+        String outline = getParam(ctx, "outline", "");
+        String prompt = String.format("""
+                请为以下小说设计情绪曲线：
+                
+                大纲:
+                %s
+                
+                需要输出：
+                1. 整体情绪走势（起伏节奏）
+                2. 关键情绪节点（燃、虐、甜、爽）
+                3. 情绪转换过渡
+                4. 读者情绪引导策略
+                
+                请以 Markdown 格式输出，可包含简单图示。
+                """, outline);
+        String response = callLlm(prompt);
+        return AgentResult.success(response, Map.of("type", "emotion", "content", response));
+    }
+
+    /**
+     * 卡文分析（使用 userInput 直接作为 prompt）
+     */
+    private AgentResult analyzeWriterBlock(AgentContext ctx) {
+        String response = callLlm(ctx.userInput());
+        return AgentResult.success(response, Map.of("type", "analysis", "content", response));
     }
     
     @Override

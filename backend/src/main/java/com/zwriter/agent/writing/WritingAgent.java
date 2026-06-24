@@ -1,5 +1,6 @@
 package com.zwriter.agent.writing;
 
+import com.zwriter.agent.base.AgentContext;
 import com.zwriter.agent.base.AgentInput;
 import com.zwriter.agent.base.AgentResult;
 import com.zwriter.agent.base.BaseAgent;
@@ -18,8 +19,13 @@ import java.util.Map;
 public class WritingAgent extends BaseAgent {
 
     @Override
-    public String getName() {
+    public String name() {
         return "正文写作分镜 Agent";
+    }
+
+    @Override
+    public String getName() {
+        return name();
     }
 
     @Override
@@ -140,6 +146,87 @@ public class WritingAgent extends BaseAgent {
         data.put("content", response);
         
         return AgentResult.success(response, data);
+    }
+    
+    /**
+     * 新版接口（AgentContext）
+     */
+    @Override
+    protected AgentResult doExecute(AgentContext ctx) throws Exception {
+        String subTask = getSubTask(ctx, "storyboard");
+        
+        return switch (subTask) {
+            case "storyboard" -> generateStoryboard(ctx);
+            case "chapter" -> generateChapter(ctx);
+            case "scene" -> generateScene(ctx);
+            default -> AgentResult.failure("未知的子任务: " + subTask);
+        };
+    }
+
+    private AgentResult generateStoryboard(AgentContext ctx) {
+        String chapterOutline = getParam(ctx, "chapterOutline", "");
+        // For workspace context, we'll use the workspace path to read files
+        // In Phase 3.5 this will use ContextManager
+        String prompt = String.format("""
+                请为以下章节大纲生成分镜脚本：
+                
+                章节大纲:
+                %s
+                
+                分镜要求：
+                1. 每个场景的起止位置
+                2. 场景类型（对话、动作、心理、环境）
+                3. 视角切换
+                4. 节奏快慢标注
+                5. 情绪基调
+                
+                请以 Markdown 格式输出。
+                """, chapterOutline);
+        String response = callLlm(prompt);
+        return AgentResult.success(response, Map.of("type", "storyboard", "content", response));
+    }
+    
+    private AgentResult generateChapter(AgentContext ctx) {
+        String storyboard = getParam(ctx, "storyboard", "");
+        String writingStyle = getParam(ctx, "writingStyle", "热血爽文");
+        String wordCount = getParam(ctx, "wordCount", "3000");
+        
+        String prompt = String.format("""
+                请基于以下分镜脚本生成正文：
+                
+                分镜脚本:
+                %s
+                
+                写作要求：
+                - 笔风: %s
+                - 目标字数: %s 字
+                - 场景转换自然
+                - 对话生动，动作描写有画面感
+                - 段落节奏感强
+                
+                请直接输出正文内容。
+                """, storyboard, writingStyle, wordCount);
+        String response = callLlm(prompt);
+        return AgentResult.success(response, Map.of("type", "chapter", "content", response, "wordCount", response.length()));
+    }
+    
+    private AgentResult generateScene(AgentContext ctx) {
+        String sceneType = getParam(ctx, "sceneType", "");
+        String sceneDesc = getParam(ctx, "sceneDesc", "");
+        String prompt = String.format("""
+                请生成以下场景描写：
+                
+                场景类型: %s
+                场景描述: %s
+                
+                要求：
+                - 五感描写（视觉、听觉、嗅觉、触觉、味觉）
+                - 氛围渲染
+                
+                请直接输出场景描写内容。
+                """, sceneType, sceneDesc);
+        String response = callLlm(prompt);
+        return AgentResult.success(response, Map.of("type", "scene", "content", response));
     }
     
     @Override

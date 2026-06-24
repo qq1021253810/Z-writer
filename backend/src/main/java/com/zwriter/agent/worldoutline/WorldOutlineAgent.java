@@ -1,5 +1,6 @@
 package com.zwriter.agent.worldoutline;
 
+import com.zwriter.agent.base.AgentContext;
 import com.zwriter.agent.base.AgentInput;
 import com.zwriter.agent.base.AgentResult;
 import com.zwriter.agent.base.BaseAgent;
@@ -18,8 +19,13 @@ import java.util.Map;
 public class WorldOutlineAgent extends BaseAgent {
 
     @Override
-    public String getName() {
+    public String name() {
         return "世界观&大纲规划 Agent";
+    }
+
+    @Override
+    public String getName() {
+        return name();
     }
 
     @Override
@@ -136,6 +142,88 @@ public class WorldOutlineAgent extends BaseAgent {
         data.put("content", response);
         
         return AgentResult.success(response, data);
+    }
+    
+    /**
+     * 新版接口（AgentContext）
+     */
+    @Override
+    protected AgentResult doExecute(AgentContext ctx) throws Exception {
+        String subTask = getSubTask(ctx, "topic");
+        
+        return switch (subTask) {
+            case "topic" -> generateTopic(ctx);
+            case "world" -> buildWorld(ctx);
+            case "outline" -> generateOutline(ctx);
+            case "branch" -> generateBranch(ctx);
+            default -> AgentResult.failure("未知的子任务: " + subTask);
+        };
+    }
+
+    private AgentResult generateTopic(AgentContext ctx) {
+        String prompt = buildSystemPrompt() + "\n\n用户偏好: " + ctx.userInput();
+        String response = callLlm(prompt);
+        return AgentResult.success(response, Map.of("type", "topic", "content", response));
+    }
+    
+    private AgentResult buildWorld(AgentContext ctx) {
+        String topic = getParam(ctx, "topic", "");
+        String prompt = String.format("""
+                请为以下小说主题搭建完整的世界观：
+                
+                主题: %s
+                
+                需要包含：
+                1. 力量体系（修炼等级、能力分类）
+                2. 地域地图（主要区域、势力分布）
+                3. 势力划分（宗门、家族、组织）
+                4. 历史背景（重要事件、传说）
+                5. 规则限制（世界法则、禁忌）
+                
+                请以 Markdown 格式输出。
+                """, topic);
+        String response = callLlm(prompt);
+        return AgentResult.success(response, Map.of("type", "world", "content", response));
+    }
+    
+    private AgentResult generateOutline(AgentContext ctx) {
+        String worldSetting = getParam(ctx, "worldSetting", "");
+        String prompt = String.format("""
+                请基于以下世界观生成小说大纲：
+                
+                世界观设定:
+                %s
+                
+                需要生成：
+                1. 全书总纲（核心冲突、主线走向）
+                2. 分卷大纲（每卷核心目标）
+                3. 每卷核心冲突（主要矛盾、转折点）
+                4. 百章级长线伏笔（伏笔埋设点、揭示点）
+                
+                请以 Markdown 格式输出。
+                """, worldSetting);
+        String response = callLlm(prompt);
+        return AgentResult.success(response, Map.of("type", "outline", "content", response));
+    }
+    
+    private AgentResult generateBranch(AgentContext ctx) {
+        String outline = getParam(ctx, "outline", "");
+        String prompt = String.format("""
+                请基于以下大纲推演剧情分支：
+                
+                大纲:
+                %s
+                
+                需要输出：
+                1. 多条剧情走向（至少 3 条）
+                2. 每条走向的爽度评分（1-10）
+                3. 每条走向的受众适配度分析
+                4. 推荐走向及理由
+                
+                请以 Markdown 格式输出。
+                """, outline);
+        String response = callLlm(prompt);
+        return AgentResult.success(response, Map.of("type", "branch", "content", response));
     }
     
     @Override

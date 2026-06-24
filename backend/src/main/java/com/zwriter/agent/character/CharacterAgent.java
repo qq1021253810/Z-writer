@@ -1,32 +1,31 @@
 package com.zwriter.agent.character;
 
+import com.zwriter.agent.base.AgentContext;
 import com.zwriter.agent.base.AgentInput;
 import com.zwriter.agent.base.AgentResult;
 import com.zwriter.agent.base.BaseAgent;
-import com.zwriter.entity.Character;
-import com.zwriter.repository.CharacterRepository;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 
 /**
- * 人物塑造 Agent
- * 负责：角色档案生成、角色关系网络、角色成长弧线、角色对话生成
+ * 人物塑造 Agent (Stub - Phase 1.1 migration)
+ * TODO: 将在 Phase 3 完全重写，使用文件系统存储替代数据库
  */
 @Slf4j
 @Component
 public class CharacterAgent extends BaseAgent {
 
-    @Autowired
-    private CharacterRepository characterRepository;
+    @Override
+    public String name() {
+        return "人物塑造 Agent";
+    }
 
     @Override
     public String getName() {
-        return "人物塑造 Agent";
+        return name();
     }
 
     @Override
@@ -78,24 +77,12 @@ public class CharacterAgent extends BaseAgent {
     }
     
     /**
-     * 角色关系网络
+     * 角色关系网络 (Stub - 数据库依赖已移除)
      */
     private AgentResult generateRelation(AgentInput input) {
-        Long novelId = input.getNovelId();
-        List<Character> characters = characterRepository.findByNovelId(novelId);
-        
-        StringBuilder charInfo = new StringBuilder();
-        for (Character c : characters) {
-            charInfo.append(String.format("- %s (%s): %s\n", 
-                    c.getName(), c.getRoleType(), c.getCoreTraits()));
-        }
-        
-        String prompt = String.format("""
-                请为以下角色生成关系网络：
-                
-                角色列表:
-                %s
-                
+        log.warn("[CharacterAgent] generateRelation 为 Stub 实现 - 数据库依赖已移除");
+        String prompt = """
+                请生成角色关系网络。
                 需要输出：
                 1. 角色间的关系类型（敌对、友好、暧昧、师徒等）
                 2. 关系强度（1-10）
@@ -103,7 +90,7 @@ public class CharacterAgent extends BaseAgent {
                 4. 关键冲突点
                 
                 请以 Markdown 格式输出。
-                """, charInfo.toString());
+                """;
         
         String response = callLlm(prompt);
         
@@ -176,6 +163,108 @@ public class CharacterAgent extends BaseAgent {
         data.put("content", response);
         
         return AgentResult.success(response, data);
+    }
+    
+    /**
+     * 新版接口（AgentContext）
+     */
+    @Override
+    protected AgentResult doExecute(AgentContext ctx) throws Exception {
+        String subTask = getSubTask(ctx, "profile");
+        
+        return switch (subTask) {
+            case "profile" -> generateProfile(ctx);
+            case "relation" -> generateRelation(ctx);
+            case "growth" -> generateGrowth(ctx);
+            case "dialogue" -> generateDialogue(ctx);
+            default -> AgentResult.failure("未知的子任务: " + subTask);
+        };
+    }
+
+    private AgentResult generateProfile(AgentContext ctx) {
+        String worldSetting = getParam(ctx, "worldSetting", "");
+        String roleType = getParam(ctx, "roleType", "主角");
+        
+        String prompt = String.format("""
+                请基于以下世界观生成角色档案：
+                
+                世界观:
+                %s
+                
+                角色类型: %s
+                
+                需要包含：
+                1. 基本信息（姓名、年龄、身份、外貌）
+                2. 性格特点（核心性格、优缺点）
+                3. 背景故事（出身、经历、动机）
+                4. 能力设定（天赋、技能、成长潜力）
+                5. 人际关系（重要联系人）
+                6. 目标追求（短期目标、长期目标）
+                
+                请以 Markdown 格式输出。
+                """, worldSetting, roleType);
+        
+        String response = callLlm(prompt);
+        return AgentResult.success(response, Map.of("type", "profile", "content", response));
+    }
+    
+    private AgentResult generateRelation(AgentContext ctx) {
+        String prompt = """
+                请生成角色关系网络。
+                需要输出：
+                1. 角色间的关系类型（敌对、友好、暧昧、师徒等）
+                2. 关系强度（1-10）
+                3. 关系发展走向
+                4. 关键冲突点
+                
+                请以 Markdown 格式输出。
+                """;
+        String response = callLlm(prompt);
+        return AgentResult.success(response, Map.of("type", "relation", "content", response));
+    }
+    
+    private AgentResult generateGrowth(AgentContext ctx) {
+        String characterProfile = getParam(ctx, "characterProfile", "");
+        String prompt = String.format("""
+                请为以下角色设计成长弧线：
+                
+                角色档案:
+                %s
+                
+                需要包含：
+                1. 初始状态（能力、心态、认知）
+                2. 关键转折点（至少 3 个）
+                3. 每个转折点的触发事件
+                4. 成长后的状态变化
+                5. 最终成就
+                
+                请以 Markdown 格式输出。
+                """, characterProfile);
+        String response = callLlm(prompt);
+        return AgentResult.success(response, Map.of("type", "growth", "content", response));
+    }
+    
+    private AgentResult generateDialogue(AgentContext ctx) {
+        String characterA = getParam(ctx, "characterA", "");
+        String characterB = getParam(ctx, "characterB", "");
+        String scene = getParam(ctx, "scene", "");
+        String prompt = String.format("""
+                请生成以下场景的角色对话：
+                
+                角色 A: %s
+                角色 B: %s
+                场景: %s
+                
+                要求：
+                1. 对话符合角色性格
+                2. 体现角色关系
+                3. 推动剧情发展
+                4. 语言风格统一
+                
+                请以剧本格式输出。
+                """, characterA, characterB, scene);
+        String response = callLlm(prompt);
+        return AgentResult.success(response, Map.of("type", "dialogue", "content", response));
     }
     
     @Override

@@ -1,5 +1,6 @@
 package com.zwriter.agent.polish;
 
+import com.zwriter.agent.base.AgentContext;
 import com.zwriter.agent.base.AgentInput;
 import com.zwriter.agent.base.AgentResult;
 import com.zwriter.agent.base.BaseAgent;
@@ -18,8 +19,13 @@ import java.util.Map;
 public class PolishAgent extends BaseAgent {
 
     @Override
-    public String getName() {
+    public String name() {
         return "润色&文风校准 Agent";
+    }
+
+    @Override
+    public String getName() {
+        return name();
     }
 
     @Override
@@ -130,6 +136,89 @@ public class PolishAgent extends BaseAgent {
         data.put("content", response);
         
         return AgentResult.success(response, data);
+    }
+    
+    /**
+     * 新版接口（AgentContext）
+     */
+    @Override
+    protected AgentResult doExecute(AgentContext ctx) throws Exception {
+        String subTask = getSubTask(ctx, "style");
+        
+        return switch (subTask) {
+            case "style" -> calibrateStyle(ctx);
+            case "polish" -> polishText(ctx);
+            case "transition" -> fixTransition(ctx);
+            default -> AgentResult.failure("未知的子任务: " + subTask);
+        };
+    }
+
+    private AgentResult calibrateStyle(AgentContext ctx) {
+        String chapterContent = getParam(ctx, "chapterContent", "");
+        String targetStyle = getParam(ctx, "targetStyle", "");
+        String prompt = String.format("""
+                请对以下章节进行文风校准：
+                
+                目标文风: %s
+                
+                章节内容:
+                %s
+                
+                校准要求：
+                1. 统一全文语言风格
+                2. 修正不符合目标文风的用词
+                3. 保持叙事节奏一致
+                4. 标注修改点
+                
+                请输出校准后的内容，并在末尾附上修改说明。
+                """, targetStyle, chapterContent);
+        String response = callLlm(prompt);
+        return AgentResult.success(response, Map.of("type", "style", "content", response));
+    }
+    
+    private AgentResult polishText(AgentContext ctx) {
+        String chapterContent = getParam(ctx, "chapterContent", "");
+        String prompt = String.format("""
+                请对以下章节进行语言润色：
+                
+                章节内容:
+                %s
+                
+                润色要求：
+                1. 修正错别字、病句
+                2. 优化表达，增强画面感
+                3. 删除冗余段落
+                4. 增强对话表现力
+                5. 保持原意不变
+                
+                请输出润色后的内容。
+                """, chapterContent);
+        String response = callLlm(prompt);
+        return AgentResult.success(response, Map.of("type", "polish", "content", response));
+    }
+    
+    private AgentResult fixTransition(AgentContext ctx) {
+        String previousChapter = getParam(ctx, "previousChapter", "");
+        String currentChapter = getParam(ctx, "currentChapter", "");
+        String prompt = String.format("""
+                请检查并修复以下两章之间的衔接问题：
+                
+                上一章结尾:
+                %s
+                
+                本章开头:
+                %s
+                
+                需要检查：
+                1. 时间线是否连贯
+                2. 角色位置是否合理
+                3. 情节是否有断裂
+                4. 情绪是否自然过渡
+                
+                请输出修复后的本章开头（约 500 字）。
+                """, previousChapter, currentChapter);
+        String response = callLlm(prompt);
+        return AgentResult.success(response, Map.of("type", "transition", "content", response));
     }
     
     @Override

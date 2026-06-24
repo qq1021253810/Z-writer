@@ -98,4 +98,20 @@ public class OllamaLlmService implements LlmService {
 
         return chat(fullPrompt, systemPrompt);
     }
+
+    @Override
+    public float[] embed(String text) {
+        log.debug("[OllamaLLM] 向量化请求 - 文本长度: {}", text.length());
+        try {
+            // Spring AI Ollama 已注入 embedding model
+            // 这里复用 Spring AI 的 OllamaEmbeddingModel
+            // 但由于我们没直接注入它，需要通过 Spring 上下文获取
+            // 简化处理：返回空向量（Phase 3.4 时完善）
+            log.warn("[OllamaLLM] Ollama embedding 暂未实现，将在 Phase 3.4 完善");
+            return new float[0];
+        } catch (Exception e) {
+            log.error("[OllamaLLM] 向量化失败", e);
+            return new float[0];
+        }
+    }
 }

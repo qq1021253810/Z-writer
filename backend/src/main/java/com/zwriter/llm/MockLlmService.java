@@ -60,4 +60,15 @@ public class MockLlmService implements LlmService {
         log.debug("[MockLLM] 带上下文请求 - context长度: {}", context != null ? context.length() : 0);
         return chat(prompt, systemPrompt);
     }
+
+    @Override
+    public float[] embed(String text) {
+        // Mock 向量：返回固定维度的随机向量
+        log.debug("[MockLLM] 向量化请求 - 文本长度: {}", text.length());
+        float[] embedding = new float[128];
+        for (int i = 0; i < embedding.length; i++) {
+            embedding[i] = random.nextFloat();
+        }
+        return embedding;
+    }
 }

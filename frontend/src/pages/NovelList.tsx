@@ -2,11 +2,10 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { novelService } from '../services/api';
 import { Button } from '@/components/ui/button';
-import { Card, CardHeader, CardTitle, CardContent, CardFooter } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { ThemeToggle } from '@/components/theme-toggle';
-import { Pencil, Trash2 } from 'lucide-react';
+import { Pencil, Trash2, Plus } from 'lucide-react';
 
 interface Novel {
   id: number;
@@ -50,74 +49,85 @@ function NovelList() {
 
   return (
     <div className="min-h-screen bg-background">
-      <div className="container mx-auto px-4 py-8">
-        <div className="flex justify-between items-center mb-8">
-          <h1 className="text-4xl font-bold text-foreground">我的小说</h1>
-          <div className="flex items-center gap-3">
+      <div className="container mx-auto px-4 py-12 max-w-5xl">
+        <div className="flex justify-between items-center mb-12">
+          <h1 className="text-3xl font-light tracking-wide text-foreground">我的小说</h1>
+          <div className="flex items-center gap-4">
             <ThemeToggle />
-            <Button onClick={() => navigate('/create')}>
-              + 新建小说
+            <Button onClick={() => navigate('/create')} className="gap-2">
+              <Plus className="h-4 w-4" />
+              新建
             </Button>
           </div>
         </div>
 
         {loading ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {Array.from({ length: 6 }).map((_, i) => (
-              <Card key={i}>
-                <CardHeader>
-                  <Skeleton className="h-6 w-3/4" />
-                </CardHeader>
-                <CardContent className="space-y-2">
-                  <Skeleton className="h-4 w-1/2" />
-                  <Skeleton className="h-4 w-1/3" />
-                </CardContent>
-                <CardFooter className="gap-2">
-                  <Skeleton className="h-10 flex-1" />
-                  <Skeleton className="h-10 w-16" />
-                </CardFooter>
-              </Card>
+          <div className="space-y-3">
+            {Array.from({ length: 5 }).map((_, i) => (
+              <div key={i} className="flex items-center justify-between p-4 border rounded-lg">
+                <div className="flex-1 space-y-2">
+                  <Skeleton className="h-5 w-1/3" />
+                  <Skeleton className="h-4 w-1/4" />
+                </div>
+                <div className="flex gap-2">
+                  <Skeleton className="h-9 w-9" />
+                  <Skeleton className="h-9 w-9" />
+                </div>
+              </div>
             ))}
           </div>
         ) : novels.length === 0 ? (
-          <Card className="text-center py-12">
-            <CardContent>
-              <p className="text-muted-foreground text-lg">还没有小说，点击"新建小说"开始创作吧</p>
-            </CardContent>
-          </Card>
+          <div className="text-center py-24">
+            <p className="text-muted-foreground mb-6">还没有小说</p>
+            <Button onClick={() => navigate('/create')} variant="outline">
+              开始创作
+            </Button>
+          </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <div className="space-y-2">
             {novels.map(novel => (
-              <Card key={novel.id} className="bg-muted border-border">
-                <CardHeader>
-                  <CardTitle>{(!novel.title || novel.title === '?') ? '未命名' : novel.title}</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-2">
-                  <div className="flex items-center gap-2">
-                    <span className="text-sm text-muted-foreground">类型:</span>
-                    <Badge variant="secondary">{(!novel.genre || novel.genre === '?') ? '未设置' : novel.genre}</Badge>
+              <div
+                key={novel.id}
+                className="group flex items-center justify-between p-4 border border-border/50 rounded-lg hover:border-border hover:bg-muted/30 transition-all"
+              >
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-3 mb-1">
+                    <h3 className="text-base font-medium truncate">
+                      {(!novel.title || novel.title === '?') ? '未命名' : novel.title}
+                    </h3>
+                    <Badge variant="outline" className="text-xs">
+                      {(!novel.genre || novel.genre === '?') ? '未设置' : novel.genre}
+                    </Badge>
+                    <Badge variant="secondary" className="text-xs">
+                      {(!novel.status || novel.status === '?' || novel.status === 'draft') ? '初始化' : novel.status}
+                    </Badge>
                   </div>
-                  <div className="flex items-center gap-2">
-                    <span className="text-sm text-muted-foreground">状态:</span>
-                    <Badge variant="outline">{(!novel.status || novel.status === '?' || novel.status === 'draft') ? '初始化' : novel.status}</Badge>
-                  </div>
-                </CardContent>
-                <CardFooter className="justify-end gap-2">
+                  {novel.synopsis && (
+                    <p className="text-sm text-muted-foreground truncate">
+                      {novel.synopsis}
+                    </p>
+                  )}
+                </div>
+
+                <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                   <Button
                     size="icon"
+                    variant="ghost"
                     onClick={() => navigate(`/novel/${novel.id}/edit`)}
+                    className="h-9 w-9"
                   >
                     <Pencil className="h-4 w-4" />
                   </Button>
                   <Button
-                    variant="destructive"
+                    variant="ghost"
                     size="icon"
                     onClick={() => handleDelete(novel.id)}
+                    className="h-9 w-9 text-destructive hover:text-destructive"
                   >
                     <Trash2 className="h-4 w-4" />
                   </Button>
-                </CardFooter>
-              </Card>
+                </div>
+              </div>
             ))}
           </div>
         )}
