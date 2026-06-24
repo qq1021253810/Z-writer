@@ -16,31 +16,23 @@ import java.util.Map;
 @Slf4j
 @Component
 public class WorldOutlineAgent extends BaseAgent {
-    
+
     @Override
     public String getName() {
         return "世界观&大纲规划 Agent";
     }
-    
+
     @Override
-    public AgentResult execute(AgentInput input) {
-        long startTime = System.currentTimeMillis();
-        log.info("[{}] 开始执行任务: {}", getName(), input.getTaskType());
-        
-        try {
-            String subTask = (String) input.getParams().getOrDefault("subTask", "topic");
-            
-            return switch (subTask) {
-                case "topic" -> generateTopic(input);
-                case "world" -> buildWorld(input);
-                case "outline" -> generateOutline(input);
-                case "branch" -> generateBranch(input);
-                default -> AgentResult.failure("未知的子任务: " + subTask);
-            };
-        } catch (Exception e) {
-            log.error("[{}] 执行失败", getName(), e);
-            return AgentResult.failure(e.getMessage());
-        }
+    protected AgentResult doExecute(AgentInput input) throws Exception {
+        String subTask = getSubTask(input, "topic");
+
+        return switch (subTask) {
+            case "topic" -> generateTopic(input);
+            case "world" -> buildWorld(input);
+            case "outline" -> generateOutline(input);
+            case "branch" -> generateBranch(input);
+            default -> AgentResult.failure("未知的子任务: " + subTask);
+        };
     }
     
     /**

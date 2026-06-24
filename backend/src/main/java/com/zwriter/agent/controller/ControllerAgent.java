@@ -17,6 +17,7 @@ import org.springframework.stereotype.Component;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.function.Function;
 
 /**
  * 总控调度 Agent
@@ -26,33 +27,45 @@ import java.util.Map;
 @Slf4j
 @Component
 public class ControllerAgent {
-    
+
     @Autowired
     private WorldOutlineAgent worldOutlineAgent;
-    
+
     @Autowired
     private CharacterAgent characterAgent;
-    
+
     @Autowired
     private PlotAgent plotAgent;
-    
+
     @Autowired
     private WritingAgent writingAgent;
-    
+
     @Autowired
     private PolishAgent polishAgent;
-    
+
     @Autowired
     private ComplianceAgent complianceAgent;
-    
+
     @Autowired
     private ContextService contextService;
-    
+
     @Autowired
     private ContextCompressionService contextCompressionService;
-    
+
     @Autowired
     private LlmService llmService;
+
+    /**
+     * Agent 路由映射表（策略模式）
+     */
+    private final Map<String, Function<AgentInput, AgentResult>> agentRouter = Map.of(
+            "world_outline", worldOutlineAgent::execute,
+            "character", characterAgent::execute,
+            "plot", plotAgent::execute,
+            "writing", writingAgent::execute,
+            "polish", polishAgent::execute,
+            "compliance", complianceAgent::execute
+    );
     
     /**
      * 处理用户请求（增强版：带上下文统筹和冲突校验）
@@ -145,18 +158,11 @@ public class ControllerAgent {
     }
     
     /**
-     * 路由到对应的子 Agent
+     * 路由到对应的子 Agent（使用策略模式）
      */
     private AgentResult routeToAgent(String taskType, AgentInput input) {
-        return switch (taskType) {
-            case "world_outline" -> worldOutlineAgent.execute(input);
-            case "character" -> characterAgent.execute(input);
-            case "plot" -> plotAgent.execute(input);
-            case "writing" -> writingAgent.execute(input);
-            case "polish" -> polishAgent.execute(input);
-            case "compliance" -> complianceAgent.execute(input);
-            default -> AgentResult.failure("未知的任务类型: " + taskType);
-        };
+        return agentRouter.getOrDefault(taskType,
+                i -> AgentResult.failure("未知的任务类型: " + taskType)).apply(input);
     }
     
     /**

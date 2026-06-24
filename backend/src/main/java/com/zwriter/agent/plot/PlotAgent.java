@@ -16,31 +16,23 @@ import java.util.Map;
 @Slf4j
 @Component
 public class PlotAgent extends BaseAgent {
-    
+
     @Override
     public String getName() {
         return "剧情爽点节奏 Agent";
     }
-    
+
     @Override
-    public AgentResult execute(AgentInput input) {
-        long startTime = System.currentTimeMillis();
-        log.info("[{}] 开始执行任务: {}", getName(), input.getTaskType());
-        
-        try {
-            String subTask = (String) input.getParams().getOrDefault("subTask", "golden3");
-            
-            return switch (subTask) {
-                case "golden3" -> designGolden3(input);
-                case "rhythm" -> planRhythm(input);
-                case "poison" -> avoidPoison(input);
-                case "emotion" -> controlEmotion(input);
-                default -> AgentResult.failure("未知的子任务: " + subTask);
-            };
-        } catch (Exception e) {
-            log.error("[{}] 执行失败", getName(), e);
-            return AgentResult.failure(e.getMessage());
-        }
+    protected AgentResult doExecute(AgentInput input) throws Exception {
+        String subTask = getSubTask(input, "golden3");
+
+        return switch (subTask) {
+            case "golden3" -> designGolden3(input);
+            case "rhythm" -> planRhythm(input);
+            case "poison" -> avoidPoison(input);
+            case "emotion" -> controlEmotion(input);
+            default -> AgentResult.failure("未知的子任务: " + subTask);
+        };
     }
     
     /**

@@ -16,30 +16,22 @@ import java.util.Map;
 @Slf4j
 @Component
 public class PolishAgent extends BaseAgent {
-    
+
     @Override
     public String getName() {
         return "润色&文风校准 Agent";
     }
-    
+
     @Override
-    public AgentResult execute(AgentInput input) {
-        long startTime = System.currentTimeMillis();
-        log.info("[{}] 开始执行任务: {}", getName(), input.getTaskType());
-        
-        try {
-            String subTask = (String) input.getParams().getOrDefault("subTask", "style");
-            
-            return switch (subTask) {
-                case "style" -> calibrateStyle(input);
-                case "polish" -> polishText(input);
-                case "transition" -> fixTransition(input);
-                default -> AgentResult.failure("未知的子任务: " + subTask);
-            };
-        } catch (Exception e) {
-            log.error("[{}] 执行失败", getName(), e);
-            return AgentResult.failure(e.getMessage());
-        }
+    protected AgentResult doExecute(AgentInput input) throws Exception {
+        String subTask = getSubTask(input, "style");
+
+        return switch (subTask) {
+            case "style" -> calibrateStyle(input);
+            case "polish" -> polishText(input);
+            case "transition" -> fixTransition(input);
+            default -> AgentResult.failure("未知的子任务: " + subTask);
+        };
     }
     
     /**

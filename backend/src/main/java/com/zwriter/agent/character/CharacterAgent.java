@@ -20,34 +20,26 @@ import java.util.Map;
 @Slf4j
 @Component
 public class CharacterAgent extends BaseAgent {
-    
+
     @Autowired
     private CharacterRepository characterRepository;
-    
+
     @Override
     public String getName() {
         return "人物塑造 Agent";
     }
-    
+
     @Override
-    public AgentResult execute(AgentInput input) {
-        long startTime = System.currentTimeMillis();
-        log.info("[{}] 开始执行任务: {}", getName(), input.getTaskType());
-        
-        try {
-            String subTask = (String) input.getParams().getOrDefault("subTask", "profile");
-            
-            return switch (subTask) {
-                case "profile" -> generateProfile(input);
-                case "relation" -> generateRelation(input);
-                case "growth" -> generateGrowth(input);
-                case "dialogue" -> generateDialogue(input);
-                default -> AgentResult.failure("未知的子任务: " + subTask);
-            };
-        } catch (Exception e) {
-            log.error("[{}] 执行失败", getName(), e);
-            return AgentResult.failure(e.getMessage());
-        }
+    protected AgentResult doExecute(AgentInput input) throws Exception {
+        String subTask = getSubTask(input);
+
+        return switch (subTask) {
+            case "profile" -> generateProfile(input);
+            case "relation" -> generateRelation(input);
+            case "growth" -> generateGrowth(input);
+            case "dialogue" -> generateDialogue(input);
+            default -> AgentResult.failure("未知的子任务: " + subTask);
+        };
     }
     
     /**
