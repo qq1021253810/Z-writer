@@ -11,7 +11,7 @@ import java.util.List;
 import java.util.stream.Collectors;
 
 /**
- * 滚动摘要（与 CLI rolling_summary.rs 对齐）
+ * 滚动摘要
  * 当对话过长时，自动压缩历史对话为摘要
  */
 @Slf4j

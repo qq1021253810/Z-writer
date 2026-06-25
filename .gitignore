@@ -63,8 +63,6 @@ chroma_data/
 
 # LLM API keys (sensitive, never commit)
 backend/src/main/resources/application-llm.yml
-rust-cli/config.local.toml
-rust-cli/.dashscope_key
 
 # Trae IDE specs (local only)
 .trae/

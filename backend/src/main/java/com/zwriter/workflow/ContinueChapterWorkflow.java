@@ -13,7 +13,7 @@ import java.io.IOException;
 import java.util.Map;
 
 /**
- * 续写章节工作流（与 CLI continue chapter 对齐）
+ * 续写章节工作流
  * 
  * 工作区上下文 → WritingAgent → 保存章节
  */

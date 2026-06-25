@@ -5,7 +5,7 @@ import lombok.extern.slf4j.Slf4j;
 import java.util.List;
 
 /**
- * Token 优化器（与 CLI token_optimizer.rs 对齐）
+ * Token 优化器
  * 预估 token 数量，裁剪上下文防止超出 LLM 限制
  */
 @Slf4j

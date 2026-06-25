@@ -11,7 +11,7 @@ import java.util.*;
 import java.util.stream.Collectors;
 
 /**
- * 角色追踪器（与 CLI character_tracker.rs 对齐）
+ * 角色追踪器
  * 追踪角色状态变化，检测设定矛盾
  */
 @Slf4j

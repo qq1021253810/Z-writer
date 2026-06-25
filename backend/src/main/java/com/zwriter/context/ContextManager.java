@@ -13,7 +13,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * 上下文管理器（与 CLI context_manager.rs 对齐）
+ * 上下文管理器
  * 管理对话历史，维护上下文窗口
  */
 @Slf4j

@@ -12,11 +12,11 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * 小说管理 API（与 CLI 命令对齐）
- * - GET /api/novels → list (zw list)
- * - POST /api/novels → create (zw create-novel)
- * - GET /api/novels/{name} → get info
- * - DELETE /api/novels/{name} → delete
+ * 小说管理 API
+ * - GET /api/novels → 获取小说列表
+ * - POST /api/novels → 创建小说
+ * - GET /api/novels/{name} → 获取小说信息
+ * - DELETE /api/novels/{name} → 删除小说
  */
 @Slf4j
 @RestController

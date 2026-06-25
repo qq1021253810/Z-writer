@@ -13,7 +13,7 @@ import java.io.IOException;
 import java.util.Map;
 
 /**
- * 卡文修复工作流（与 CLI fix-writer-block 对齐）
+ * 卡文修复工作流
  * 
  * 用户描述问题 → PlotAgent 分析 → 提供剧情建议
  */

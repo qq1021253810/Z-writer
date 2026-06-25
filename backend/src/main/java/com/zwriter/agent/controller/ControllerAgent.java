@@ -10,6 +10,7 @@ import com.zwriter.agent.writing.WritingAgent;
 import com.zwriter.agent.polish.PolishAgent;
 import com.zwriter.agent.compliance.ComplianceAgent;
 import com.zwriter.llm.LlmService;
+import jakarta.annotation.PostConstruct;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
@@ -19,7 +20,7 @@ import java.util.Map;
 import java.util.function.Function;
 
 /**
- * 总控调度 Agent（与 CLI 的 Agent 路由对齐）
+ * 总控调度 Agent
  * 支持两种调用方式：
  * 1. 旧版：AgentInput → execute (向后兼容)
  * 2. 新版：AgentContext → execute (推荐)
@@ -52,26 +53,37 @@ public class ControllerAgent {
     /**
      * Agent 路由映射表（旧版 AgentInput）
      */
-    private final Map<String, Function<AgentInput, AgentResult>> agentRouter = Map.of(
-            "world_outline", worldOutlineAgent::execute,
-            "character", characterAgent::execute,
-            "plot", plotAgent::execute,
-            "writing", writingAgent::execute,
-            "polish", polishAgent::execute,
-            "compliance", complianceAgent::execute
-    );
+    private Map<String, Function<AgentInput, AgentResult>> agentRouter;
 
     /**
      * Agent 路由映射表（新版 AgentContext）
      */
-    private final Map<String, Function<AgentContext, AgentResult>> agentRouterV2 = Map.of(
-            "world_outline", worldOutlineAgent::execute,
-            "character", characterAgent::execute,
-            "plot", plotAgent::execute,
-            "writing", writingAgent::execute,
-            "polish", polishAgent::execute,
-            "compliance", complianceAgent::execute
-    );
+    private Map<String, Function<AgentContext, AgentResult>> agentRouterV2;
+
+    /**
+     * 初始化路由表（依赖注入完成后执行）
+     */
+    @PostConstruct
+    public void init() {
+        agentRouter = Map.of(
+                "world_outline", worldOutlineAgent::execute,
+                "character", characterAgent::execute,
+                "plot", plotAgent::execute,
+                "writing", writingAgent::execute,
+                "polish", polishAgent::execute,
+                "compliance", complianceAgent::execute
+        );
+
+        agentRouterV2 = Map.of(
+                "world_outline", worldOutlineAgent::execute,
+                "character", characterAgent::execute,
+                "plot", plotAgent::execute,
+                "writing", writingAgent::execute,
+                "polish", polishAgent::execute,
+                "compliance", complianceAgent::execute
+        );
+        log.debug("[ControllerAgent] 路由表初始化完成");
+    }
 
     // ==================== 旧版接口（向后兼容） ====================
 

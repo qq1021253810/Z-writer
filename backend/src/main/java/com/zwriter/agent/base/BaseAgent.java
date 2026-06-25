@@ -199,7 +199,7 @@ public abstract class BaseAgent {
         return value != null ? value.toString() : defaultValue;
     }
 
-    // ==================== 流式执行（与 CLI execute_stream 对齐） ====================
+    // ==================== 流式执行 ====================
 
     /**
      * 流式执行 Agent 任务
@@ -260,7 +260,7 @@ public abstract class BaseAgent {
     }
 
     /**
-     * 获取系统提示词（与 CLI system_prompt() 对齐）
+     * 获取系统提示词
      */
     public String systemPrompt() {
         return buildSystemPrompt();

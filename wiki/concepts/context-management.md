@@ -2,9 +2,9 @@
 type: concept
 title: 上下文管理
 created: 2026-06-18
-updated: 2026-06-18
+updated: 2026-06-25
 tags: [architecture, context, ai, optimization]
-sources: [rust-cli/src/context/]
+sources: [backend/src/main/java/com/zwriter/context/]
 confidence: high
 contested: false
 contradictions: []
@@ -14,7 +14,7 @@ approved: true
 
 # 上下文管理
 
-Rust CLI 实现了完整的上下文管理系统，解决 LLM 上下文窗口限制问题，确保长篇小说创作中 Agent 始终拥有足够的上下文信息。
+Java 后端实现了完整的上下文管理系统，解决 LLM 上下文窗口限制问题，确保长篇小说创作中 Agent 始终拥有足够的上下文信息。
 
 ## 分层上下文架构 (ContextManager)
 
@@ -37,125 +37,74 @@ Tier 3: 永久保留（关键决策）
 
 ### 核心实现
 
-```rust
-pub struct ContextManager {
-    pub token_budget: usize,               // Token 预算上限
-    pub tier1_recent: VecDeque<Message>,   // 最近消息
-    pub tier2_compressed: Vec<Message>,    // 压缩摘要
-    pub tier3_permanent: Vec<Message>,     // 永久保留
-    pub recent_limit: usize,               // Tier 1 保留条数
-}
-```
+ContextManager 管理对话历史和上下文窗口，使用 JSONL 文件持久化存储。
 
-### 消息分类规则
-
-| 条件 | 分类 | 存储位置 |
-|------|------|----------|
-| 包含关键词（设定/伏笔/关键/重要等） | Full | Tier 3 永久 |
-| 长度 > 500 字 | Compressed | Tier 2 摘要 |
-| 普通消息 | Placeholder | Tier 1 最近 |
+**关键功能**：
+- 添加消息并估算 token 数
+- 获取最近 N 条消息
+- 检查是否需要压缩
+- 清空历史记录
 
 ## 角色状态追踪 (CharacterTracker)
 
 实时追踪每个角色的多维状态，每章更新。
 
-```rust
-pub struct CharacterState {
-    pub name: String,
-    pub location: String,          // 当前位置
-    pub emotional_state: String,   // 情感状态
-    pub relationships: HashMap<String, String>, // 关系状态
-    pub inventory: Vec<String>,    // 物品清单
-    pub capability_tier: Option<String>, // 修为/能力层级
-    pub dialogue_style: String,    // 对话风格
-    pub growth_stage: String,      // 成长阶段
-    pub last_updated_chapter: usize, // 最后更新章节
-}
-```
+**CharacterState 结构**：
+- name: 角色名称
+- location: 当前位置
+- emotional_state: 情感状态
+- relationships: 关系状态 Map
+- inventory: 物品清单
+- capability_tier: 能力层级
+- dialogue_style: 对话风格
+- growth_stage: 成长阶段
+- last_updated_chapter: 最后更新章节
 
-**变化追踪**：每次角色状态变更记录 `CharacterChange`（chapter, change_type, before, after），形成完整的角色成长弧线。
+**变化追踪**：每次角色状态变更记录 CharacterChange（chapter, change_type, before, after），形成完整的角色成长弧线。
+
+**冲突检测**：自动检测角色属性矛盾（如同一角色的同一属性出现不同值）。
 
 ## 滚动摘要 (RollingSummary)
 
-每章自动生成摘要，每 10 章触发一次深度压缩。
+每章自动生成摘要，超过阈值时触发深度压缩。
 
-```rust
-pub struct RollingSummary {
-    pub chapter_summaries: Vec<RollingChapterSummary>,
-    pub compressed_summaries: Vec<CompressedSummary>,
-    pub style_anchor: String,               // 风格锚点（代表性文段）
-    pub compression_threshold: usize,       // 深度压缩阈值（默认 10 章）
-}
-```
+**核心机制**：
+- 检查当前 token 数是否超过压缩阈值
+- 获取最近对话历史
+- 调用 LLM 生成摘要
+- 保存摘要到文件
+- 清空旧历史，保留最近几轮对话
 
 **摘要结构**：
-- **章节摘要**：chapter_num, title, summary, key_events, style_passage（风格锚点）
-- **深度压缩摘要**：volume_range, overall_summary, main_plot_progress, character_arcs
+- 章节摘要：chapter_num, title, summary, key_events, style_passage
+- 深度压缩摘要：volume_range, overall_summary, main_plot_progress, character_arcs
 
 ## Token 优化 (TokenOptimizer)
 
-三级优化策略，逐级增强压缩力度。
+多级优化策略，管理 token 预算和上下文窗口。
 
-| 级别 | 策略 | 说明 | 压缩比 |
-|------|------|------|--------|
-| 1 | 无损压缩 | 空白规范化，去除多余空白 | ~1.2x |
-| 2 | 中文虚词过滤 | 去除"的/了/和/是"等 15 个虚词 | ~1.5x |
-| 3 | 抽取式压缩 | 基于句子重要性评分，选择性保留 | ~2-3x |
-
-### 句子重要性评分
-
-```rust
-let scored_sentences: Vec<(usize, f32, &str)> = sentences
-    .iter()
-    .enumerate()
-    .map(|(i, s)| {
-        let score = calculate_importance(s);  // 基于关键词 + 长度加权
-        (i, score, *s)
-    })
-    .collect();
-```
+**核心功能**：
+- 估算文本 token 数
+- 裁剪上下文到可用 token 数
+- 保留开头（重要信息）和结尾（最新信息）
+- 中间内容按比例裁剪并添加裁剪标记
 
 ## Token 预算管理
 
-- **CLI 启动时**：读取配置中的 `token_budget`（默认 4096）
-- **每步操作前**：检查当前用量，超过 80% 时黄色警告，超过 100% 时强烈建议压缩
-- **手动压缩**：`/compress` 命令调用 LLM 压缩最近 10 章，更新 Tier 2
-- **上下文快照**：退出时自动保存 `.context_snapshot.json`，下次启动恢复
-
-## Token 统计追踪 (TokenTracker)
-
-全局统计所有 LLM 调用的 Token 消耗：
-
-```rust
-pub struct TokenTracker {
-    total_prompt: AtomicU64,      // 总输入 tokens
-    total_completion: AtomicU64,  // 总输出 tokens
-    call_count: AtomicU64,        // 调用次数
-}
-```
-
-通过 `/stats` 命令查看统计信息。
-
-## 与 Java 后端的对比
-
-| 维度 | Rust CLI | Java 后端 |
-|------|----------|-----------|
-| 上下文管理 | ContextManager（三层） | ContextService + ContextCompressionService |
-| 角色追踪 | CharacterTracker（文件） | RDBMS CharacterRepository |
-| 摘要机制 | RollingSummary（JSON） | 无独立摘要模块 |
-| Token 优化 | TokenOptimizer（三级） | LlmService 直接调用 |
-| Token 统计 | TokenTracker（全局） | 无 |
+- **启动时**：读取配置中的 token_budget
+- **每步操作前**：检查当前用量，超过阈值时触发压缩
+- **手动压缩**：调用 LLM 压缩最近对话，更新 Tier 2
+- **上下文快照**：自动保存到 JSONL 文件
 
 ## 指标与限制
 
-- Token 预算：4096（可配置）
+- Token 预算：可配置（默认 4096）
 - Tier 1 保留条数：10 条
-- 深度压缩阈值：10 章
-- 重试策略：3 次，指数退避（1s/2s/4s）
+- 深度压缩阈值：可配置
+- 重试策略：3 次，指数退避
 
 ## 相关页面
 
-- [[rust-cli-architecture]] - Rust CLI 架构
 - [[hybrid-rag-storage]] - 混合 RAG 存储（上下文数据来源）
 - [[multi-agent-architecture]] - Agent 使用上下文信息
-- [[context-service-layer]] - Java 后端上下文服务（对比参考）
+- [[context-service-layer]] - 上下文服务层

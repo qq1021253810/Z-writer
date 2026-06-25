@@ -13,7 +13,7 @@ import java.util.Optional;
 import java.util.stream.Collectors;
 
 /**
- * L2 记忆树（与 CLI l2_memory_tree.rs 对齐）
+ * L2 记忆树
  * 分层存储小说的全局设定、世界观、角色关系等
  */
 @Slf4j
@@ -78,7 +78,7 @@ public class MemoryTree {
     }
 
     /**
-     * 召回剧情上下文（对标 Rust recall_plot）
+     * 召回剧情上下文
      */
     public String recallPlot(int currentChapter, int lookback) throws IOException {
         MemoryTreeData data = load();

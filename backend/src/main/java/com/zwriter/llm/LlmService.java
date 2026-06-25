@@ -3,7 +3,7 @@ package com.zwriter.llm;
 import reactor.core.publisher.Flux;
 
 /**
- * LLM 服务接口（与 CLI llm/mod.rs 对齐）
+ * LLM 服务接口
  * 支持同步、流式对话和向量化
  */
 public interface LlmService {

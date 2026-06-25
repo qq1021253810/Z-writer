@@ -1,7 +1,7 @@
 {
   "entities/multi-agent-architecture": {
-    "outgoing": ["workflow-system", "external-tool-plugins", "vector-knowledge-service", "context-service-layer", "data-model", "rust-cli-architecture", "hybrid-rag-storage", "context-management"],
-    "incoming": ["external-tool-plugins", "workflow-system", "vector-knowledge-service", "context-service-layer", "dialogue-guide-system", "rust-cli-architecture", "cli-commands", "frontend-components"]
+    "outgoing": ["workflow-system", "external-tool-plugins", "vector-knowledge-service", "context-service-layer", "data-model"],
+    "incoming": ["external-tool-plugins", "workflow-system", "vector-knowledge-service", "context-service-layer", "dialogue-guide-system", "frontend-components"]
   },
   "entities/external-tool-plugins": {
     "outgoing": ["multi-agent-architecture", "workflow-system", "setting-sync-service"],
@@ -27,14 +27,6 @@
     "outgoing": ["workflow-system", "multi-agent-architecture", "context-service-layer"],
     "incoming": ["frontend-components"]
   },
-  "entities/rust-cli-architecture": {
-    "outgoing": ["cli-commands", "hybrid-rag-storage", "context-management", "multi-agent-architecture", "workflow-system"],
-    "incoming": ["multi-agent-architecture", "cli-commands", "hybrid-rag-storage", "context-management", "workflow-system"]
-  },
-  "entities/cli-commands": {
-    "outgoing": ["rust-cli-architecture", "context-management", "multi-agent-architecture"],
-    "incoming": ["rust-cli-architecture", "workflow-system"]
-  },
   "entities/frontend-components": {
     "outgoing": ["api-endpoints", "workflow-system", "external-tool-plugins", "multi-agent-architecture", "dialogue-guide-system"],
     "incoming": []
@@ -44,20 +36,20 @@
     "incoming": ["vector-knowledge-service", "common-issues"]
   },
   "concepts/workflow-system": {
-    "outgoing": ["multi-agent-architecture", "external-tool-plugins", "vector-knowledge-service", "context-service-layer", "data-model", "rust-cli-architecture", "cli-commands", "api-endpoints"],
-    "incoming": ["multi-agent-architecture", "external-tool-plugins", "pending-optimizations", "context-service-layer", "dialogue-guide-system", "data-model", "rust-cli-architecture", "frontend-components"]
+    "outgoing": ["multi-agent-architecture", "external-tool-plugins", "vector-knowledge-service", "context-service-layer", "data-model", "api-endpoints"],
+    "incoming": ["multi-agent-architecture", "external-tool-plugins", "pending-optimizations", "context-service-layer", "dialogue-guide-system", "data-model", "frontend-components"]
   },
   "concepts/infrastructure-stack": {
     "outgoing": ["vector-knowledge-service", "data-model", "common-issues", "database-schema"],
     "incoming": ["data-model"]
   },
   "concepts/hybrid-rag-storage": {
-    "outgoing": ["rust-cli-architecture", "context-management", "data-model", "vector-knowledge-service"],
-    "incoming": ["rust-cli-architecture", "multi-agent-architecture"]
+    "outgoing": ["context-management", "data-model", "vector-knowledge-service"],
+    "incoming": ["multi-agent-architecture"]
   },
   "concepts/context-management": {
-    "outgoing": ["rust-cli-architecture", "hybrid-rag-storage", "multi-agent-architecture", "context-service-layer"],
-    "incoming": ["rust-cli-architecture", "cli-commands", "multi-agent-architecture"]
+    "outgoing": ["hybrid-rag-storage", "multi-agent-architecture", "context-service-layer"],
+    "incoming": ["multi-agent-architecture"]
   },
   "concepts/api-endpoints": {
     "outgoing": ["workflow-system", "data-model", "external-tool-plugins", "frontend-components"],

@@ -15,7 +15,7 @@ import java.util.Map;
 import java.util.stream.Collectors;
 
 /**
- * L3 素材库（与 CLI l3_material_store.rs 对齐）
+ * L3 素材库
  * 存储写作素材、金句、情节模板，支持向量检索
  */
 @Slf4j
@@ -80,7 +80,7 @@ public class MaterialStore {
             return List.of();
         }
 
-        // 对标 Rust: 计算相似度，使用 select_nth_unstable_by 的思想
+        // 计算余弦相似度并排序
         List<ScoredMaterial> scored = materials.stream()
                 .map(m -> new ScoredMaterial(m, cosineSimilarity(queryEmbedding, m.getEmbedding())))
                 .filter(s -> s.score > 0) // 只保留有效相似度

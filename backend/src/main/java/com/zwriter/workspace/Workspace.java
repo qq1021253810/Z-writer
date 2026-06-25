@@ -12,7 +12,7 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 /**
- * 小说工作区（与 CLI workspace.rs 对齐）
+ * 小说工作区
  */
 @Slf4j
 @Getter

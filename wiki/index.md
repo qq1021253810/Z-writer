@@ -7,7 +7,7 @@ project: "Z-writer"
 
 This index is the first file read by `codewiki query` before matched pages.
 
-> Last updated: 2026-06-23 | Total pages: 19
+> Last updated: 2026-06-25 | Total pages: 17
 
 ## Entities
 
@@ -18,8 +18,6 @@ This index is the first file read by `codewiki query` before matched pages.
 - [[entities/context-service-layer]] - 上下文服务层（ContextService + ContextCompressionService）
 - [[entities/setting-sync-service]] - 设定同步服务（跨数据存储一致性机制）
 - [[entities/dialogue-guide-system]] - 对话引导系统（AI 引导式创作流程）
-- [[entities/rust-cli-architecture]] - Rust CLI 架构（性能 16ms/2MB，12 个模块）
-- [[entities/cli-commands]] - CLI 命令参考（14 个命令详解）
 - [[entities/frontend-components]] - 前端组件架构（React 18 + shadcn/ui）
 
 ## Decisions
@@ -28,7 +26,7 @@ This index is the first file read by `codewiki query` before matched pages.
 
 ## Concepts
 
-- [[concepts/workflow-system]] - 工作流系统（Java 3 种 + Rust 2 种）
+- [[concepts/workflow-system]] - 工作流系统（3 种核心工作流）
 - [[concepts/infrastructure-stack]] - 基础设施栈（Docker Compose + PostgreSQL + Redis + ChromaDB）
 - [[concepts/hybrid-rag-storage]] - 混合 RAG 存储（L1 Markdown + L2 JSON + L3 向量库）
 - [[concepts/context-management]] - 上下文管理（Tier1/2/3 分层 + 角色追踪 + Token 优化）

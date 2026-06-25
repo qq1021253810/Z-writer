@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
+import jakarta.annotation.PostConstruct;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
@@ -17,7 +18,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * 阿里云百炼 DashScope LLM 实现（与 CLI OllamaClient 对齐）
+ * 阿里云百炼 DashScope LLM 实现
  * 通过 OpenAI 兼容接口调用，使用 WebClient 实现真正的流式响应
  */
 @Slf4j
@@ -25,13 +26,13 @@ import java.util.List;
 @ConditionalOnProperty(name = "llm.provider", havingValue = "dashscope")
 public class DashScopeLlmService implements LlmService {
 
-    private final WebClient webClient;
+    private WebClient webClient;
     private final ObjectMapper objectMapper;
 
     @Value("${llm.dashscope.api-key}")
     private String apiKey;
 
-    @Value("${llm.dashscope.base-url:https://dashscope.aliyuncs.com/compatible-mode}")
+    @Value("${llm.dashscope.base-url:https://dashscope.aliyuncs.com/compatible-mode/v1}")
     private String baseUrl;
 
     @Value("${llm.dashscope.model:qwen-plus}")
@@ -44,12 +45,17 @@ public class DashScopeLlmService implements LlmService {
     private double temperature;
 
     public DashScopeLlmService() {
+        this.objectMapper = new ObjectMapper();
+    }
+
+    @PostConstruct
+    public void init() {
         this.webClient = WebClient.builder()
                 .baseUrl(baseUrl)
                 .defaultHeader(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_JSON_VALUE)
+                .defaultHeader(HttpHeaders.AUTHORIZATION, "Bearer " + apiKey)
                 .codecs(configurer -> configurer.defaultCodecs().maxInMemorySize(10 * 1024 * 1024))
                 .build();
-        this.objectMapper = new ObjectMapper();
         log.info("[DashScope] 初始化完成，baseUrl: {}", baseUrl);
     }
 
@@ -62,7 +68,7 @@ public class DashScopeLlmService implements LlmService {
         try {
             ObjectNode body = buildRequestBody(prompt, systemPrompt, false);
             String response = webClient.post()
-                    .uri("/v1/chat/completions")
+                    .uri("/chat/completions")
                     .header(HttpHeaders.AUTHORIZATION, "Bearer " + apiKey)
                     .bodyValue(body)
                     .retrieve()
@@ -88,7 +94,7 @@ public class DashScopeLlmService implements LlmService {
             ObjectNode body = buildRequestBody(prompt, systemPrompt, true);
 
             return webClient.post()
-                    .uri("/v1/chat/completions")
+                    .uri("/chat/completions")
                     .header(HttpHeaders.AUTHORIZATION, "Bearer " + apiKey)
                     .bodyValue(body)
                     .retrieve()
@@ -136,15 +142,14 @@ public class DashScopeLlmService implements LlmService {
             body.put("input", text);
 
             String response = webClient.post()
-                    .uri("/v1/services/embeddings/text-embedding/text-embedding")
-                    .header(HttpHeaders.AUTHORIZATION, "Bearer " + apiKey)
+                    .uri("/embeddings")
                     .bodyValue(body)
                     .retrieve()
                     .bodyToMono(String.class)
                     .block(Duration.ofSeconds(30));
 
             JsonNode root = objectMapper.readTree(response);
-            JsonNode embeddingNode = root.path("output").path("embeddings").path(0).path("embedding");
+            JsonNode embeddingNode = root.path("data").path(0).path("embedding");
 
             float[] embedding = new float[embeddingNode.size()];
             for (int i = 0; i < embeddingNode.size(); i++) {

@@ -89,7 +89,6 @@ approved: false
 Add a new tag here before using it on any page.
 
 - `architecture`: system structure, modules, boundaries, and data flow.
-- `cli`: command-line behavior, flags, output, and invocation workflows.
 - `adapter`: tool adapters, generated instructions, and integration surfaces.
 - `hook`: hook scripts, lifecycle events, and automated context capture.
 - `concept`: recurring project concepts, patterns, domain terms, and technical ideas.
