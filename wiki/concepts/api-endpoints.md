@@ -30,9 +30,13 @@ Z-writer 后端提供 13 个 REST API 控制器，共 50+ 个接口端点。
 
 | 方法 | 端点 | 说明 | 超时 |
 |------|------|------|------|
-| POST | `/workflow/create-novel` | 新建小说工作流 | 60s |
-| POST | `/workflow/continue-chapter` | 续写章节工作流 | 60s |
-| POST | `/workflow/fix-writer-block` | 卡文修复工作流 | 60s |
+| POST | `/workflows/create-novel` | 新建小说工作流（异步） | 60s |
+| POST | `/workflows/continue` | 续写章节工作流（异步） | 60s |
+| POST | `/workflows/fix-block` | 卡文修复工作流（同步） | 60s |
+| POST | `/workflows/polish` | 润色章节 | 30s |
+| POST | `/workflows/review` | 审计章节 | 30s |
+| POST | `/workflows/strategy` | 战略规划 | 30s |
+| GET | `/workflows/{taskId}/status` | 订阅任务进度（SSE） | - |
 
 **POST /workflow/create-novel**
 
@@ -158,14 +162,30 @@ Z-writer 后端提供 13 个 REST API 控制器，共 50+ 个接口端点。
 |------|------|------|------|
 | POST | `/agent/execute` | 执行 Agent 任务 | 30s |
 
-### 12. LLM 接口（LlmController）
+### 12. LLM 测试接口（LlmTestController）
 
 | 方法 | 端点 | 说明 | 超时 |
 |------|------|------|------|
-| POST | `/llm/chat` | LLM 对话 | 30s |
-| POST | `/llm/chat/stream` | LLM 流式对话（SSE） | 60s |
+| GET | `/llm-test/dashscope` | 测试百炼 API 连通性 | 30s |
+| GET | `/llm-test/ollama` | 测试 Ollama 连通性 | 30s |
 
-### 13. 对话引导接口（DialogueGuideController）
+### 13. 会话接口（SessionController）
+
+| 方法 | 端点 | 说明 | 超时 |
+|------|------|------|------|
+| POST | `/sessions` | 创建会话 | 10s |
+| GET | `/sessions/{id}` | 获取会话详情 | 10s |
+| POST | `/sessions/{id}/messages` | 发送消息 | 30s |
+| DELETE | `/sessions/{id}` | 关闭会话 | 10s |
+
+### 14. Wiki 接口（WikiController）
+
+| 方法 | 端点 | 说明 | 超时 |
+|------|------|------|------|
+| GET | `/wiki/genres` | 列出所有类型 | 10s |
+| GET | `/wiki/genres/{genre}` | 获取类型规则 | 10s |
+
+### 15. 对话引导接口（DialogueGuideController）
 
 | 方法 | 端点 | 说明 | 超时 |
 |------|------|------|------|

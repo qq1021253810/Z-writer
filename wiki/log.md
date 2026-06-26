@@ -9,6 +9,26 @@ type: log
 > Actions: ingest, update, query, lint, create, archive, delete, absorb, breakdown
 > Rotate when this file exceeds 500 entries.
 
+## [2026-06-26] update | CodeWiki 精简优化
+
+- 新增 3 个 wiki 页面：
+  - entities/llm-service-layer — LLM 服务层（百炼优先 + Ollama 降级路由）
+  - entities/workflow-expansion — 扩展工作流（Strategy/Review/Polish + AsyncExecutor）
+  - entities/session-and-workspace — 会话与工作区管理（SessionManager + WorkspaceManager + WikiService）
+- 修复 5 个过时页面：
+  - entities/vector-knowledge-service — 模型版本 qwen3:1.7b→qwen3:8b，移除 Spring AI VectorStore 引用
+  - concepts/infrastructure-stack — 模型版本修正，新增百炼 DashScope 配置
+  - concepts/workflow-system — 补充 3 个扩展工作流 + 异步执行机制
+  - concepts/api-endpoints — 新增 Strategy/Review/Polish/Session/Wiki 端点
+  - entities/frontend-components — 新增 SSE 流式渲染基础设施
+- 合并 2 个页面：
+  - concepts/context-management → entities/context-service-layer（归档）
+  - concepts/hybrid-rag-storage → entities/vector-knowledge-service（归档）
+- 更新 2 个页面：
+  - lessons/common-issues — 移除 Spring AI 过时内容，补充实际教训
+  - issues/pending-optimizations — 标记已完成项
+- 更新 index.md（总页数 17→18）、_backlinks.json、log.md
+
 ## [2026-06-25] delete | Rust CLI 项目清除
 
 - 删除 `rust-cli/` 整个目录（Rust 源码、测试、wiki 副本、工作区数据、编译产物）

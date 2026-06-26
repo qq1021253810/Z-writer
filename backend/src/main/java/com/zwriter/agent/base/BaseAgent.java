@@ -6,12 +6,15 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
+import java.util.HashMap;
 import java.util.Map;
-import java.util.function.Function;
 
 /**
  * Agent 基类
  * 提供通用的 LLM 调用、上下文管理能力和统一的执行流程
+ * 
+ * 子类通过 registerSubTask() 注册子任务处理器，只需实现一份业务逻辑，
+ * BaseAgent 自动适配 AgentInput 和 AgentContext 两种调用方式。
  */
 @Slf4j
 public abstract class BaseAgent {
@@ -23,18 +26,31 @@ public abstract class BaseAgent {
     protected ContextService contextService;
 
     /**
-     * 新版执行入口（AgentContext）
-     * 子类应重写 doExecute(AgentContext ctx) 来实现新接口
-     *
-     * @param ctx 执行上下文
-     * @return 执行结果
+     * 子任务处理器函数式接口
+     */
+    @FunctionalInterface
+    protected interface SubTaskHandler {
+        AgentResult handle(Map<String, Object> params, String userInput) throws Exception;
+    }
+
+    /**
+     * 子任务处理器注册表
+     */
+    private final Map<String, SubTaskHandler> subTaskHandlers = new HashMap<>();
+
+    // ==================== 执行入口 ====================
+
+    /**
+     * 执行入口（AgentContext）
      */
     public AgentResult execute(AgentContext ctx) {
         long startTime = System.currentTimeMillis();
-        log.info("[{}] 开始执行任务 (AgentContext): {}", name(), ctx.taskType());
+        log.info("[{}] 开始执行任务: {}", name(), ctx.taskType());
 
         try {
-            AgentResult result = doExecute(ctx);
+            AgentResult result = dispatch(
+                    ctx.params() != null ? ctx.params() : Map.of(),
+                    ctx.userInput());
             result.setDurationMs(System.currentTimeMillis() - startTime);
             log.info("[{}] 执行完成，耗时: {}ms", name(), result.getDurationMs());
             return result;
@@ -46,50 +62,35 @@ public abstract class BaseAgent {
     }
 
     /**
-     * 旧版执行入口（兼容旧代码）
-     *
-     * @param input 输入参数
-     * @return 执行结果
+     * 执行入口（AgentInput，向后兼容）
      */
     public AgentResult execute(AgentInput input) {
-        AgentContext ctx = AgentContext.fromAgentInput(input);
-        return execute(ctx);
+        long startTime = System.currentTimeMillis();
+        log.info("[{}] 开始执行任务: {}", name(), input.getTaskType());
+
+        try {
+            AgentResult result = dispatch(
+                    input.getParams() != null ? input.getParams() : Map.of(),
+                    input.getUserInput());
+            result.setDurationMs(System.currentTimeMillis() - startTime);
+            log.info("[{}] 执行完成，耗时: {}ms", name(), result.getDurationMs());
+            return result;
+        } catch (Exception e) {
+            long duration = System.currentTimeMillis() - startTime;
+            log.error("[{}] 执行失败，耗时: {}ms", name(), duration, e);
+            return AgentResult.failure(e.getMessage());
+        }
     }
 
-    /**
-     * 新版：子类实现具体业务逻辑（AgentContext 版本）
-     * 默认实现：转换为 AgentInput 调用旧方法，子类应重写此方法
-     *
-     * @param ctx 执行上下文
-     * @return 执行结果
-     * @throws Exception 执行过程中可能抛出的异常
-     */
-    protected AgentResult doExecute(AgentContext ctx) throws Exception {
-        // 默认实现：将 AgentContext 转换为 AgentInput 调用旧方法
-        AgentInput input = new AgentInput();
-        input.setTaskType(ctx.taskType());
-        input.setUserInput(ctx.userInput());
-        input.setParams(ctx.params());
-        return doExecute(input);
-    }
+    // ==================== 子类扩展点 ====================
 
     /**
-     * 旧版：子类实现具体业务逻辑（AgentInput 版本）
-     * 保留用于向后兼容
-     *
-     * @param input 输入参数
-     * @return 执行结果
-     * @throws Exception 执行过程中可能抛出的异常
-     */
-    protected abstract AgentResult doExecute(AgentInput input) throws Exception;
-
-    /**
-     * 获取 Agent 名称（新版方法）
+     * 获取 Agent 名称
      */
     public abstract String name();
 
     /**
-     * 获取 Agent 名称（旧版兼容）
+     * 获取 Agent 名称（兼容旧调用）
      */
     public String getName() {
         return name();
@@ -99,6 +100,76 @@ public abstract class BaseAgent {
      * 构建系统提示词
      */
     protected abstract String buildSystemPrompt();
+
+    /**
+     * 默认执行逻辑（当子任务未注册时调用）
+     * 子类可重写以实现不基于子任务路由的逻辑
+     */
+    protected AgentResult doExecute(Map<String, Object> params, String userInput) throws Exception {
+        return AgentResult.failure("未注册的子任务或无默认实现");
+    }
+
+    // ==================== 子任务注册与分发 ====================
+
+    /**
+     * 注册子任务处理器（子类在构造函数中调用）
+     */
+    protected void registerSubTask(String subTask, SubTaskHandler handler) {
+        subTaskHandlers.put(subTask, handler);
+    }
+
+    /**
+     * 分发到注册的子任务处理器
+     */
+    private AgentResult dispatch(Map<String, Object> params, String userInput) throws Exception {
+        String subTask = getSubTask(params, defaultSubTask());
+        SubTaskHandler handler = subTaskHandlers.get(subTask);
+
+        if (handler != null) {
+            return handler.handle(params, userInput);
+        }
+        return doExecute(params, userInput);
+    }
+
+    /**
+     * 默认子任务名称（子类可重写）
+     */
+    protected String defaultSubTask() {
+        return "profile";
+    }
+
+    // ==================== 参数辅助方法 ====================
+
+    /**
+     * 从 params Map 中获取子任务名称
+     */
+    protected String getSubTask(Map<String, Object> params, String defaultSubTask) {
+        if (params == null) {
+            return defaultSubTask;
+        }
+        Object subTask = params.get("subTask");
+        return subTask != null ? subTask.toString() : defaultSubTask;
+    }
+
+    /**
+     * 从 params Map 中获取参数，默认值为空字符串
+     */
+    protected String getParam(Map<String, Object> params, String key) {
+        return getParam(params, key, "");
+    }
+
+    /**
+     * 从 params Map 中获取参数
+     */
+    protected String getParam(Map<String, Object> params, String key, String defaultValue) {
+        if (params == null) {
+            return defaultValue;
+        }
+        Object value = params.get(key);
+        return value != null ? value.toString() : defaultValue;
+    }
+
+    // ==================== LLM 调用 ====================
 
     /**
      * 调用 LLM
@@ -113,90 +184,6 @@ public abstract class BaseAgent {
      */
     protected String callLlm(String userPrompt) {
         return callLlm(userPrompt, buildSystemPrompt());
-    }
-
-    /**
-     * 子任务路由辅助方法
-     * 使用 Map 策略模式替代 switch-case
-     *
-     * @param subTask        子任务类型
-     * @param handlers       子任务处理器映射
-     * @param defaultResult  默认结果（当子任务不存在时返回）
-     * @return 处理结果
-     */
-    protected <T> T routeSubTask(String subTask, Map<String, Function<AgentInput, T>> handlers, T defaultResult) {
-        return handlers.getOrDefault(subTask, i -> defaultResult).apply(null);
-    }
-
-    /**
-     * 获取子任务参数，默认值为 "profile"
-     */
-    protected String getSubTask(AgentInput input) {
-        return getSubTask(input, "profile");
-    }
-
-    /**
-     * 获取子任务参数
-     *
-     * @param input       输入参数
-     * @param defaultSubTask 默认子任务
-     * @return 子任务名称
-     */
-    protected String getSubTask(AgentInput input, String defaultSubTask) {
-        if (input.getParams() == null) {
-            return defaultSubTask;
-        }
-        Object subTask = input.getParams().get("subTask");
-        return subTask != null ? subTask.toString() : defaultSubTask;
-    }
-
-    /**
-     * 获取子任务参数（AgentContext 版本），默认值为 "profile"
-     */
-    protected String getSubTask(AgentContext ctx) {
-        return getSubTask(ctx, "profile");
-    }
-
-    /**
-     * 获取子任务参数（AgentContext 版本）
-     *
-     * @param ctx            执行上下文
-     * @param defaultSubTask 默认子任务
-     * @return 子任务名称
-     */
-    protected String getSubTask(AgentContext ctx, String defaultSubTask) {
-        if (ctx.params() == null) {
-            return defaultSubTask;
-        }
-        Object subTask = ctx.params().get("subTask");
-        return subTask != null ? subTask.toString() : defaultSubTask;
-    }
-
-    /**
-     * 获取参数（AgentContext 版本），默认值为空字符串
-     *
-     * @param ctx 执行上下文
-     * @param key 参数名
-     * @return 参数值
-     */
-    protected String getParam(AgentContext ctx, String key) {
-        return getParam(ctx, key, "");
-    }
-
-    /**
-     * 获取参数（AgentContext 版本）
-     *
-     * @param ctx          执行上下文
-     * @param key          参数名
-     * @param defaultValue 默认值
-     * @return 参数值
-     */
-    protected String getParam(AgentContext ctx, String key, String defaultValue) {
-        if (ctx.params() == null) {
-            return defaultValue;
-        }
-        Object value = ctx.params().get(key);
-        return value != null ? value.toString() : defaultValue;
     }
 
     // ==================== 流式执行 ====================

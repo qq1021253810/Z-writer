@@ -4,6 +4,9 @@ import com.zwriter.common.ApiResponse;
 import com.zwriter.workflow.AsyncWorkflowExecutor;
 import com.zwriter.workflow.ContinueChapterWorkflow;
 import com.zwriter.workflow.FixWriterBlockWorkflow;
+import com.zwriter.workflow.PolishWorkflow;
+import com.zwriter.workflow.ReviewWorkflow;
+import com.zwriter.workflow.StrategyWorkflow;
 import com.zwriter.workflow.WorkflowTask;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -33,6 +36,15 @@ public class WorkflowController {
 
     @Autowired
     private FixWriterBlockWorkflow fixWorkflow;
+
+    @Autowired
+    private PolishWorkflow polishWorkflow;
+
+    @Autowired
+    private ReviewWorkflow reviewWorkflow;
+
+    @Autowired
+    private StrategyWorkflow strategyWorkflow;
 
     /**
      * 创建小说工作流（异步）
@@ -114,6 +126,83 @@ public class WorkflowController {
                     : ApiResponse.failure(result.errorMessage());
         } catch (IOException e) {
             return ApiResponse.failure("卡文修复失败: " + e.getMessage());
+        }
+    }
+
+    /**
+     * 章节润色工作流（同步）
+     */
+    @PostMapping("/polish")
+    public ApiResponse<Map<String, Object>> polishChapter(@RequestBody Map<String, Object> request) {
+        String novelName = (String) request.get("novelName");
+        Integer chapterNum = (Integer) request.get("chapterNum");
+        String polishType = (String) request.getOrDefault("polishType", "polish");
+
+        if (novelName == null || chapterNum == null) {
+            return ApiResponse.failure("缺少参数: novelName, chapterNum");
+        }
+
+        try {
+            PolishWorkflow.WorkflowResult result = polishWorkflow.polishChapter(novelName, chapterNum, polishType);
+            return result.success()
+                    ? ApiResponse.success(Map.of(
+                            "content", result.content(),
+                            "metadata", result.metadata() != null ? result.metadata() : Map.of()))
+                    : ApiResponse.failure(result.errorMessage());
+        } catch (IOException e) {
+            return ApiResponse.failure("润色失败: " + e.getMessage());
+        }
+    }
+
+    /**
+     * 章节审计工作流（同步）
+     */
+    @PostMapping("/review")
+    public ApiResponse<Map<String, Object>> reviewChapter(@RequestBody Map<String, Object> request) {
+        String novelName = (String) request.get("novelName");
+        Integer chapterNum = (Integer) request.get("chapterNum");
+        String reviewType = (String) request.getOrDefault("reviewType", "logic");
+
+        if (novelName == null || chapterNum == null) {
+            return ApiResponse.failure("缺少参数: novelName, chapterNum");
+        }
+
+        try {
+            ReviewWorkflow.WorkflowResult result = "full".equals(reviewType)
+                    ? reviewWorkflow.fullReview(novelName, chapterNum)
+                    : reviewWorkflow.reviewChapter(novelName, chapterNum, reviewType);
+            return result.success()
+                    ? ApiResponse.success(Map.of(
+                            "content", result.content(),
+                            "metadata", result.metadata() != null ? result.metadata() : Map.of()))
+                    : ApiResponse.failure(result.errorMessage());
+        } catch (IOException e) {
+            return ApiResponse.failure("审计失败: " + e.getMessage());
+        }
+    }
+
+    /**
+     * 战略规划工作流（同步）
+     */
+    @PostMapping("/strategy")
+    public ApiResponse<Map<String, Object>> executeStrategy(@RequestBody Map<String, Object> request) {
+        String novelName = (String) request.get("novelName");
+        String strategyType = (String) request.getOrDefault("strategyType", "master_plan");
+
+        if (novelName == null) {
+            return ApiResponse.failure("缺少参数: novelName");
+        }
+
+        try {
+            StrategyWorkflow.WorkflowResult result = strategyWorkflow.executeStrategy(
+                    novelName, strategyType, request);
+            return result.success()
+                    ? ApiResponse.success(Map.of(
+                            "content", result.content(),
+                            "metadata", result.metadata() != null ? result.metadata() : Map.of()))
+                    : ApiResponse.failure(result.errorMessage());
+        } catch (IOException e) {
+            return ApiResponse.failure("战略规划失败: " + e.getMessage());
         }
     }
 

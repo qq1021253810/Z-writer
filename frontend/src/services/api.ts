@@ -77,22 +77,35 @@ export const workflowService = {
 
 // 小说管理 API
 export const novelService = {
-  // 获取小说列表
+  // 获取小说列表（后端返回 ApiResponse<List<String>>，需要转换为 Novel[]）
   getNovelList: async () => {
     const response = await novelApi.get('/novels');
-    return response.data;
+    const apiResp = response.data;
+    if (apiResp?.success && Array.isArray(apiResp.data)) {
+      return apiResp.data.map((name: string, index: number) => ({
+        id: index + 1,
+        title: name,
+        genre: '',
+        synopsis: '',
+        status: '进行中',
+        createdAt: '',
+      }));
+    }
+    return [];
   },
 
-  // 获取小说详情
+  // 获取小说详情（后端返回 ApiResponse<Map>，需要提取 data）
   getNovelDetail: async (novelId: number) => {
     const response = await novelApi.get(`/novels/${novelId}`);
-    return response.data;
+    const apiResp = response.data;
+    return apiResp?.data || apiResp;
   },
 
   // 创建小说
   createNovel: async (data: any) => {
     const response = await novelApi.post('/novels', data);
-    return response.data;
+    const apiResp = response.data;
+    return apiResp?.data || apiResp;
   },
 
   // 更新小说
@@ -101,9 +114,13 @@ export const novelService = {
     return response.data;
   },
 
-  // 删除小说
+  // 删除小说（后端使用 name 而非 id）
   deleteNovel: async (novelId: number) => {
-    const response = await novelApi.delete(`/novels/${novelId}`);
+    // 先获取列表找到对应的 name
+    const novels = await novelService.getNovelList();
+    const novel = novels.find((n: any) => n.id === novelId);
+    if (!novel) throw new Error('小说不存在');
+    const response = await novelApi.delete(`/novels/${novel.title}`);
     return response.data;
   },
 };

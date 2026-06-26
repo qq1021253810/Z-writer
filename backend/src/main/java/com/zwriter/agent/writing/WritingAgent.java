@@ -1,289 +1,228 @@
 package com.zwriter.agent.writing;
 
-import com.zwriter.agent.base.AgentContext;
-import com.zwriter.agent.base.AgentInput;
 import com.zwriter.agent.base.AgentResult;
 import com.zwriter.agent.base.BaseAgent;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
-import java.util.HashMap;
 import java.util.Map;
 
 /**
- * 正文写作分镜 Agent
- * 负责：章节分镜、正文生成、场景描写、对话生成
+ * 正文写作 Agent
+ * 负责：章节分镜（信息密度规划）、正文生成（冷峻克制文风）、场景描写（功能性描写）
  */
 @Slf4j
 @Component
 public class WritingAgent extends BaseAgent {
 
+    public WritingAgent() {
+        registerSubTask("storyboard", this::generateStoryboard);
+        registerSubTask("chapter", this::generateChapter);
+        registerSubTask("scene", this::generateScene);
+    }
+
     @Override
     public String name() {
-        return "正文写作分镜 Agent";
+        return "正文写作 Agent";
     }
 
     @Override
-    public String getName() {
-        return name();
+    protected String defaultSubTask() {
+        return "storyboard";
     }
 
-    @Override
-    protected AgentResult doExecute(AgentInput input) throws Exception {
-        String subTask = getSubTask(input, "storyboard");
-
-        return switch (subTask) {
-            case "storyboard" -> generateStoryboard(input);
-            case "chapter" -> generateChapter(input);
-            case "scene" -> generateScene(input);
-            default -> AgentResult.failure("未知的子任务: " + subTask);
-        };
-    }
-    
     /**
-     * 章节分镜
+     * 章节分镜（信息密度规划）
      */
-    private AgentResult generateStoryboard(AgentInput input) {
-        String chapterOutline = (String) input.getParams().get("chapterOutline");
-        String worldContext = contextService.getNovelContext(input.getNovelId());
-        
+    private AgentResult generateStoryboard(Map<String, Object> params, String userInput) {
+        String chapterOutline = getParam(params, "chapterOutline", userInput);
+
         String prompt = String.format("""
-                请为以下章节大纲生成分镜脚本：
-                
-                上下文:
-                %s
-                
+                请为以下章节大纲生成分镜脚本（信息密度规划）：
+
                 章节大纲:
                 %s
-                
-                分镜要求：
-                1. 每个场景的起止位置
-                2. 场景类型（对话、动作、心理、环境）
-                3. 视角切换
-                4. 节奏快慢标注
-                5. 情绪基调
-                
-                请以 Markdown 格式输出。
-                """, worldContext, chapterOutline);
-        
-        String response = callLlm(prompt);
-        
-        Map<String, Object> data = new HashMap<>();
-        data.put("type", "storyboard");
-        data.put("content", response);
-        
-        return AgentResult.success(response, data);
-    }
-    
-    /**
-     * 正文生成
-     */
-    private AgentResult generateChapter(AgentInput input) {
-        String storyboard = (String) input.getParams().get("storyboard");
-        String writingStyle = (String) input.getParams().getOrDefault("writingStyle", "热血爽文");
-        String wordCount = (String) input.getParams().getOrDefault("wordCount", "3000");
-        String worldContext = contextService.getNovelContext(input.getNovelId());
-        
-        String prompt = String.format("""
-                请基于以下分镜脚本生成正文：
-                
-                上下文（必须遵循）:
-                %s
-                
-                分镜脚本:
-                %s
-                
-                写作要求：
-                - 笔风: %s
-                - 目标字数: %s 字
-                - 严格遵循上下文设定
-                - 场景转换自然
-                - 对话生动，动作描写有画面感
-                - 段落节奏感强
-                
-                请直接输出正文内容。
-                """, worldContext, storyboard, writingStyle, wordCount);
-        
-        String response = callLlm(prompt);
-        
-        Map<String, Object> data = new HashMap<>();
-        data.put("type", "chapter");
-        data.put("content", response);
-        data.put("wordCount", response.length());
-        
-        return AgentResult.success(response, data);
-    }
-    
-    /**
-     * 场景描写
-     */
-    private AgentResult generateScene(AgentInput input) {
-        String sceneType = (String) input.getParams().get("sceneType");
-        String sceneDesc = (String) input.getParams().get("sceneDesc");
-        String worldContext = contextService.getNovelContext(input.getNovelId());
-        
-        String prompt = String.format("""
-                请生成以下场景描写：
-                
-                上下文:
-                %s
-                
-                场景类型: %s
-                场景描述: %s
-                
-                要求：
-                - 五感描写（视觉、听觉、嗅觉、触觉、味觉）
-                - 氛围渲染
-                - 与上下文衔接自然
-                
-                请直接输出场景描写内容。
-                """, worldContext, sceneType, sceneDesc);
-        
-        String response = callLlm(prompt);
-        
-        Map<String, Object> data = new HashMap<>();
-        data.put("type", "scene");
-        data.put("content", response);
-        
-        return AgentResult.success(response, data);
-    }
-    
-    /**
-     * 新版接口（AgentContext）
-     */
-    @Override
-    protected AgentResult doExecute(AgentContext ctx) throws Exception {
-        String subTask = getSubTask(ctx, "storyboard");
-        
-        return switch (subTask) {
-            case "storyboard" -> generateStoryboard(ctx);
-            case "chapter" -> generateChapter(ctx);
-            case "scene" -> generateScene(ctx);
-            default -> AgentResult.failure("未知的子任务: " + subTask);
-        };
-    }
 
-    private AgentResult generateStoryboard(AgentContext ctx) {
-        String chapterOutline = getParam(ctx, "chapterOutline", "");
-        // For workspace context, we'll use the workspace path to read files
-        // In Phase 3.5 this will use ContextManager
-        String prompt = String.format("""
-                请为以下章节大纲生成分镜脚本：
-                
-                章节大纲:
-                %s
-                
                 分镜要求：
-                1. 每个场景的起止位置
-                2. 场景类型（对话、动作、心理、环境）
-                3. 视角切换
-                4. 节奏快慢标注
+                1. 场景划分
+                   - 每个场景的起止位置
+                   - 场景核心信息（该场景传达什么？）
+                   - 场景功能（推动剧情/揭示角色/埋设伏笔/深化主题）
+
+                2. 信息密度控制
+                   - 每个场景揭示什么信息
+                   - 每个场景隐藏什么信息
+                   - 信息揭示方式（直接展示/暗示/对话透露/行动体现）
+
+                3. 视角与节奏
+                   - 视角选择（谁的视角？为什么？）
+                   - 节奏标注（紧凑/舒缓/张弛交替）
+                   - 段落长度建议
+
+                4. 伏笔管理
+                   - 本章埋设的伏笔
+                   - 本章呼应的伏笔
+                   - 伏笔呈现方式（细节/对话/场景暗示）
+
                 5. 情绪基调
-                
+                   - 场景情绪（克制中的张力/暗流涌动/表面平静）
+                   - 情绪转换节点
+
                 请以 Markdown 格式输出。
                 """, chapterOutline);
+
         String response = callLlm(prompt);
         return AgentResult.success(response, Map.of("type", "storyboard", "content", response));
     }
-    
-    private AgentResult generateChapter(AgentContext ctx) {
-        String storyboard = getParam(ctx, "storyboard", "");
-        String writingStyle = getParam(ctx, "writingStyle", "热血爽文");
-        String wordCount = getParam(ctx, "wordCount", "3000");
-        
+
+    /**
+     * 正文生成（冷峻克制文风）
+     */
+    private AgentResult generateChapter(Map<String, Object> params, String userInput) {
+        String storyboard = getParam(params, "storyboard", userInput);
+        String wordCount = getParam(params, "wordCount", "3000");
+
         String prompt = String.format("""
-                请基于以下分镜脚本生成正文：
-                
+                请基于以下分镜脚本生成正文（冷峻克制文风）：
+
                 分镜脚本:
                 %s
-                
-                写作要求：
-                - 笔风: %s
+
+                文风要求：
                 - 目标字数: %s 字
-                - 场景转换自然
-                - 对话生动，动作描写有画面感
-                - 段落节奏感强
-                
+                - 冷峻克制：不煽情，不渲染，用事实和细节说话
+                - 信息密度高：每段都有信息量，无废话
+                - 暗示大于直述：用行动和细节暗示心理和关系
+
+                写作规则：
+                1. 禁止过度渲染
+                   - 不用"他心中暗道"等直白心理描写
+                   - 不用"不约而同""不由自主"等廉价过渡
+                   - 不用感叹号表达情绪
+                   - 情绪通过行为和细节体现
+
+                2. 对话设计
+                   - 每句对话有潜台词
+                   - 对话中有信息差和博弈
+                   - 对话推动剧情，非闲聊
+                   - 言外之意 > 字面意思
+
+                3. 场景描写
+                   - 功能性描写（暗示心理/烘托氛围/埋设伏笔）
+                   - 用具体细节而非抽象形容
+                   - 场景与剧情/角色状态呼应
+
+                4. 节奏控制
+                   - 紧张场景：短句、动词密集、留白
+                   - 对话场景：潜台词层次、信息博弈
+                   - 过渡场景：简洁、信息承载
+
+                5. 禁止事项
+                   - 禁止"他不禁""他忍不住"等被动表达
+                   - 禁止"仿佛""好像"等模糊比喻
+                   - 禁止大段心理独白
+                   - 禁止强行说教
+                   - 禁止水字数
+
                 请直接输出正文内容。
-                """, storyboard, writingStyle, wordCount);
+                """, storyboard, wordCount);
+
         String response = callLlm(prompt);
         return AgentResult.success(response, Map.of("type", "chapter", "content", response, "wordCount", response.length()));
     }
-    
-    private AgentResult generateScene(AgentContext ctx) {
-        String sceneType = getParam(ctx, "sceneType", "");
-        String sceneDesc = getParam(ctx, "sceneDesc", "");
+
+    /**
+     * 场景描写（功能性描写）
+     */
+    private AgentResult generateScene(Map<String, Object> params, String userInput) {
+        String sceneType = getParam(params, "sceneType", "");
+        String sceneDesc = getParam(params, "sceneDesc", userInput);
+        String characterState = getParam(params, "characterState", "");
+
         String prompt = String.format("""
-                请生成以下场景描写：
-                
+                请生成以下场景描写（功能性描写）：
+
                 场景类型: %s
                 场景描述: %s
-                
-                要求：
-                - 五感描写（视觉、听觉、嗅觉、触觉、味觉）
-                - 氛围渲染
-                
+                角色状态: %s
+
+                描写原则：
+                1. 功能性：每处描写都有功能（暗示心理/烘托氛围/埋设伏笔/呼应主题）
+                2. 具体细节：用具体、可感知的细节，非抽象形容
+                3. 克制表达：不渲染，不煽情，让细节自己说话
+                4. 与角色呼应：场景与角色当前状态/心理形成呼应或反差
+
+                描写维度：
+                - 视觉细节（具体物件、光线、色彩）
+                - 听觉细节（环境音、沉默、节奏）
+                - 触觉/温度（暗示心理状态）
+                - 空间感（压迫/开阔/封闭）
+
+                禁止：
+                - 堆砌辞藻
+                - 为描写而描写
+                - 抽象抒情
+                - 与剧情/角色无关的描写
+
                 请直接输出场景描写内容。
-                """, sceneType, sceneDesc);
+                """, sceneType, sceneDesc, characterState);
+
         String response = callLlm(prompt);
         return AgentResult.success(response, Map.of("type", "scene", "content", response));
     }
-    
+
     @Override
     protected String buildSystemPrompt() {
         return """
-                你是一个专业的网文小说写手，精通各类风格的正文写作。
+                你是严肃文学级写手，专精冷峻克制、信息密度高的文风。
 
-                【核心职责】
-                1. 根据分镜脚本生成高质量正文
-                2. 场景描写有画面感
-                3. 对话生动自然
-                4. 严格遵循世界观和角色设定
+                你的文风定位：
+                - 冷峻克制：不煽情，不渲染，用事实和细节说话
+                - 信息密度高：每段都有信息量，无废话
+                - 暗示大于直述：用行动和细节暗示心理和关系
+                - 严肃文学质感：追求文学性，非网文快餐
 
-                【网文写作规则】
-                1. 开篇即冲突：第一章前500字必须出现核心冲突或悬念
-                2. 短句为主：避免长句，多用短句增强节奏感
-                3. 对话驱动：对话要推动剧情，避免废话
-                4. 画面感强：动作描写要有镜头感，让读者"看到"场景
-                5. 情绪代入：心理描写要让读者感同身受
-                6. 钩子结尾：每章结尾必须留悬念或钩子
+                你的写作原则：
+                1. 禁止过度渲染
+                   - 不用直白心理描写（"他心中暗道"）
+                   - 不用廉价过渡词（"不约而同""不由自主"）
+                   - 不用感叹号表达情绪
+                   - 情绪通过行为和细节体现
 
-                【分段规则】
-                - 每段不超过3-4行（适配手机阅读）
-                - 对话单独成段
-                - 重要转折单独成段
-                - 场景切换空一行
+                2. 对话设计
+                   - 每句对话有潜台词和目的
+                   - 对话中有信息差和博弈
+                   - 言外之意 > 字面意思
+                   - 对话推动剧情，非闲聊
 
-                【对话写作】
-                - 符合角色性格（参考人设）
-                - 口语化，避免书面语
-                - 每句对话不超过2行
-                - 动作+对话结合，避免纯对话
+                3. 场景描写
+                   - 功能性描写（暗示心理/烘托氛围/埋设伏笔）
+                   - 用具体细节而非抽象形容
+                   - 场景与剧情/角色状态呼应
+                   - 不为描写而描写
 
-                【场景描写】
-                - 五感描写：视觉、听觉、嗅觉、触觉、味觉
-                - 氛围渲染：用环境烘托情绪
-                - 简洁有力：不堆砌辞藻
-                - 与剧情相关：不为描写而描写
+                4. 节奏控制
+                   - 紧张场景：短句、动词密集、留白
+                   - 对话场景：潜台词层次、信息博弈
+                   - 过渡场景：简洁、信息承载
 
-                【节奏控制】
-                - 紧张场景：短句、快节奏
-                - 情感场景：长句、慢节奏
-                - 战斗场景：动词密集、画面感强
-                - 日常场景：轻松幽默、生活化
+                5. 禁止事项
+                   - 禁止"他不禁""他忍不住"等被动表达
+                   - 禁止"仿佛""好像"等模糊比喻
+                   - 禁止大段心理独白
+                   - 禁止强行说教
+                   - 禁止水字数
 
-                【禁止事项】
-                - 不要过度文绉绉（网文要通俗易懂）
-                - 不要大段心理独白（用行动表现）
-                - 不要强行说教（让读者自己感悟）
-                - 不要水字数（每段都要有信息量）
+                你的核心能力：
+                1. 分镜脚本：规划信息密度、伏笔管理、节奏控制
+                2. 正文生成：冷峻克制文风，高信息密度
+                3. 场景描写：功能性描写，用细节暗示心理
 
-                【写作原则】
-                - 严格遵循上下文设定，不出现矛盾
-                - 文笔流畅，节奏感强
-                - 注重画面感和代入感
-                - 对话推动剧情，避免废话
-                - 符合目标赛道的文风（热血/甜宠/悬疑等）
+                输出要求：
+                - 严格遵循分镜脚本
+                - 保持文风统一
+                - 信息密度高，无废话
+                - 用细节和行动说话
                 """;
     }
 }

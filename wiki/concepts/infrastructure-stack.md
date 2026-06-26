@@ -117,10 +117,26 @@ spring:
     ollama:
       base-url: http://localhost:11434
       chat:
-        model: qwen3:1.7b          # 对话模型
-      embedding:
-        model: nomic-embed-text     # 嵌入模型
+        options:
+          model: qwen3:8b          # 对话模型（降级使用）
 ```
+
+### 百炼 DashScope 配置
+
+```yaml
+spring:
+  ai:
+    openai:
+      api-key: ${DASHSCOPE_API_KEY}
+      base-url: https://dashscope.aliyuncs.com/compatible-mode
+      chat:
+        options:
+          model: qwen-plus           # 主对话模型
+          temperature: 0.8
+          max-tokens: 4096
+```
+
+**LLM 路由策略**：百炼 qwen-plus 优先，失败时降级到 Ollama qwen3:8b，由 `LlmServiceRouter` 统一管理。
 
 ### ChromaDB 向量存储
 
@@ -149,9 +165,9 @@ llm:
 ```
 
 **参数说明**：
-- `mock-enabled: false` — 生产环境禁用 Mock LLM，调用真实 Ollama 服务
-- `max-tokens: 4096` — 限制单次生成最大 token 数，避免超长输出
-- `temperature: 0.8` — 温度参数，0.8 平衡创造性与稳定性，适合小说创作场景
+- `mock-enabled: false` — 生产环境禁用 Mock LLM
+- `max-tokens: 4096` — 限制单次生成最大 token 数
+- `temperature: 0.8` — 温度参数，平衡创造性与稳定性，适合小说创作场景
 
 ### 日志配置
 
@@ -161,10 +177,6 @@ logging:
     com.zwriter: DEBUG
     org.springframework.ai: DEBUG
 ```
-
-**日志级别**：
-- `com.zwriter: DEBUG` — 业务代码输出 DEBUG 级别日志
-- `org.springframework.ai: DEBUG` — Spring AI 框架输出 DEBUG 日志，便于调试 LLM 调用
 
 ## Flyway 数据库迁移
 

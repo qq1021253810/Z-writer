@@ -9,6 +9,8 @@ import com.zwriter.agent.plot.PlotAgent;
 import com.zwriter.agent.writing.WritingAgent;
 import com.zwriter.agent.polish.PolishAgent;
 import com.zwriter.agent.compliance.ComplianceAgent;
+import com.zwriter.agent.review.ReviewAgent;
+import com.zwriter.agent.strategy.StrategyAgent;
 import com.zwriter.llm.LlmService;
 import jakarta.annotation.PostConstruct;
 import lombok.extern.slf4j.Slf4j;
@@ -48,6 +50,12 @@ public class ControllerAgent {
     private ComplianceAgent complianceAgent;
 
     @Autowired
+    private ReviewAgent reviewAgent;
+
+    @Autowired
+    private StrategyAgent strategyAgent;
+
+    @Autowired
     private LlmService llmService;
 
     /**
@@ -71,7 +79,9 @@ public class ControllerAgent {
                 "plot", plotAgent::execute,
                 "writing", writingAgent::execute,
                 "polish", polishAgent::execute,
-                "compliance", complianceAgent::execute
+                "compliance", complianceAgent::execute,
+                "review", reviewAgent::execute,
+                "strategy", strategyAgent::execute
         );
 
         agentRouterV2 = Map.of(
@@ -80,7 +90,9 @@ public class ControllerAgent {
                 "plot", plotAgent::execute,
                 "writing", writingAgent::execute,
                 "polish", polishAgent::execute,
-                "compliance", complianceAgent::execute
+                "compliance", complianceAgent::execute,
+                "review", reviewAgent::execute,
+                "strategy", strategyAgent::execute
         );
         log.debug("[ControllerAgent] 路由表初始化完成");
     }
@@ -144,6 +156,8 @@ public class ControllerAgent {
                 case "writing" -> writingAgent.executeStream(ctx, emitter);
                 case "polish" -> polishAgent.executeStream(ctx, emitter);
                 case "compliance" -> complianceAgent.executeStream(ctx, emitter);
+                case "review" -> reviewAgent.executeStream(ctx, emitter);
+                case "strategy" -> strategyAgent.executeStream(ctx, emitter);
                 default -> {
                     try {
                         emitter.send(SseEmitter.event().name("error").data("未知的任务类型: " + taskType));

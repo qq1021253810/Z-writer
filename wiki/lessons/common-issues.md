@@ -3,7 +3,7 @@ type: lesson
 id: LESSON-001
 title: 常见问题与解决方案
 created: 2026-06-18
-updated: 2026-06-18
+updated: 2026-06-26
 tags: [lesson]
 sources: [wiki/raw/specs/agent-memory.md]
 confidence: high
@@ -22,22 +22,24 @@ linked_issues: [pending-optimizations]
 
 ## Verified Lesson
 
-### 1. Chroma v1 API deprecated
-- **问题**：Chroma v1 API 已被标记为废弃
-- **解决方案**：升级 Spring AI 至 1.1.7，使用 v2 API
-- **相关决策**：[[spring-ai-upgrade]]
+### 1. 百炼优先 + Ollama 降级策略
+- **问题**：单点 LLM 依赖不可靠，API 可能超时或限流
+- **解决方案**：通过 `LlmServiceRouter` 实现自动降级，百炼 API 失败时切换 Ollama
+- **相关**：[[llm-service-layer]]
 
-### 2. Spring AI starter 名称变更
-- **问题**：M5 版本的 starter 名称与正式版不同
-- **解决方案**：使用 `spring-ai-starter-model-ollama` 和 `spring-ai-starter-vector-store-chroma`
+### 2. 前后端 ApiResponse 解包一致性
+- **问题**：后端返回 `ApiResponse<List<String>>`，前端期望对象数组，`novels.map is not a function`
+- **解决方案**：前端 `api.ts` 统一处理 `ApiResponse` 解包，提取 `.data` 字段
+- **相关**：[[api-endpoints]]
 
-### 3. Chroma 配置路径错误
-- **问题**：配置路径使用错误导致连接失败
-- **解决方案**：使用 `spring.ai.vectorstore.chroma` 而非 `spring.ai.chroma`
+### 3. 工作区路径问题
+- **问题**：后端运行时 workspaces 目录在 `backend/workspaces`，而非项目根目录
+- **解决方案**：使用 `WorkspaceManager` 统一管理路径，通过 `@PostConstruct` 初始化
+- **相关**：[[session-and-workspace]]
 
-### 4. PowerShell 中文乱码
-- **问题**：PowerShell 终端显示中文乱码
-- **解决方案**：实际数据正确存储，仅终端显示问题，不影响功能
+### 4. 章节文件命名格式
+- **问题**：后端期望 `chapter-001.md`（连字符），手动创建时用 `chapter_001.md`（下划线）
+- **解决方案**：统一使用 `chapter_{number}.md` 格式
 
 ### 5. Docker Desktop 未启动
 - **问题**：后端无法连接 PostgreSQL
@@ -45,7 +47,7 @@ linked_issues: [pending-optimizations]
 
 ## Evidence
 
-以上问题均来自项目实际开发经验，在 [[vector-knowledge-service|向量知识服务]] 开发和 [[spring-ai-upgrade|Spring AI 升级]] 过程中验证。
+以上问题均来自项目实际开发经验，在 LLM 降级机制实现、前后端连通性验证、工作流测试等过程中验证。
 
 ## Future Guidance
 

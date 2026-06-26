@@ -1,356 +1,313 @@
 package com.zwriter.agent.plot;
 
-import com.zwriter.agent.base.AgentContext;
-import com.zwriter.agent.base.AgentInput;
 import com.zwriter.agent.base.AgentResult;
 import com.zwriter.agent.base.BaseAgent;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
-import java.util.HashMap;
 import java.util.Map;
 
 /**
- * 剧情爽点节奏 Agent
- * 负责：黄金三章设计、爽点节奏规划、毒点规避、情绪曲线控制
+ * 剧情架构师 Agent
+ * 负责：开篇钩子设计、张力管理、逻辑门禁、深度设计、卡文分析
  */
 @Slf4j
 @Component
 public class PlotAgent extends BaseAgent {
 
+    public PlotAgent() {
+        registerSubTask("hook", this::designHook);
+        registerSubTask("tension", this::manageTension);
+        registerSubTask("logic_gate", this::checkLogic);
+        registerSubTask("depth", this::designDepth);
+        registerSubTask("analysis", this::analyzeWriterBlock);
+    }
+
     @Override
     public String name() {
-        return "剧情爽点节奏 Agent";
+        return "剧情架构师 Agent";
     }
 
     @Override
-    public String getName() {
-        return name();
+    protected String defaultSubTask() {
+        return "hook";
     }
 
-    @Override
-    protected AgentResult doExecute(AgentInput input) throws Exception {
-        String subTask = getSubTask(input, "golden3");
-
-        return switch (subTask) {
-            case "golden3" -> designGolden3(input);
-            case "rhythm" -> planRhythm(input);
-            case "poison" -> avoidPoison(input);
-            case "emotion" -> controlEmotion(input);
-            default -> AgentResult.failure("未知的子任务: " + subTask);
-        };
-    }
-    
     /**
-     * 黄金三章设计
+     * 开篇钩子设计（高信息密度开篇）
      */
-    private AgentResult designGolden3(AgentInput input) {
-        String outline = (String) input.getParams().get("outline");
-        String genre = (String) input.getParams().get("genre");
-        
+    private AgentResult designHook(Map<String, Object> params, String userInput) {
+        String outline = getParam(params, "outline");
+        String genre = getParam(params, "genre");
+
         String prompt = String.format("""
-                请为以下小说设计黄金三章：
-                
+                请为以下小说设计高信息密度开篇：
+
                 小说类型: %s
                 大纲:
                 %s
-                
-                黄金三章要求：
-                1. 第一章：快速引入主角，展示核心冲突，设置悬念
-                2. 第二章：展现主角特殊性，制造第一个爽点
-                3. 第三章：扩大冲突，展示世界观，留下钩子
-                
-                需要输出：
-                - 每章核心事件
-                - 爽点设计
-                - 悬念设置
-                - 字数建议（每章 2000-3000 字）
-                
-                请以 Markdown 格式输出。
-                """, genre, outline);
-        
-        String response = callLlm(prompt);
-        
-        Map<String, Object> data = new HashMap<>();
-        data.put("type", "golden3");
-        data.put("content", response);
-        
-        return AgentResult.success(response, data);
-    }
-    
-    /**
-     * 爽点节奏规划
-     */
-    private AgentResult planRhythm(AgentInput input) {
-        String outline = (String) input.getParams().get("outline");
-        
-        String prompt = String.format("""
-                请为以下小说规划爽点节奏：
-                
-                大纲:
-                %s
-                
-                需要输出：
-                1. 爽点类型分布（打脸、升级、获宝、复仇等）
-                2. 爽点间隔（每 3-5 章一个小爽点，每 15-20 章一个大爽点）
-                3. 爽点强度曲线（逐步升级）
-                4. 高潮节点设计
-                
-                请以 Markdown 表格形式输出。
-                """, outline);
-        
-        String response = callLlm(prompt);
-        
-        Map<String, Object> data = new HashMap<>();
-        data.put("type", "rhythm");
-        data.put("content", response);
-        
-        return AgentResult.success(response, data);
-    }
-    
-    /**
-     * 毒点规避
-     */
-    private AgentResult avoidPoison(AgentInput input) {
-        String chapterContent = (String) input.getParams().get("chapterContent");
-        
-        String prompt = String.format("""
-                请检查以下章节内容是否存在毒点：
-                
-                章节内容:
-                %s
-                
-                常见毒点：
-                1. 主角过于圣母/懦弱
-                2. 女角色过度依赖男主
-                3. 逻辑硬伤
-                4. 节奏拖沓
-                5. 强行降智
-                6. 过度说教
-                
-                需要输出：
-                - 发现的毒点（如有）
-                - 毒点严重程度（1-10）
-                - 修改建议
-                
-                请以 Markdown 格式输出。
-                """, chapterContent);
-        
-        String response = callLlm(prompt);
-        
-        Map<String, Object> data = new HashMap<>();
-        data.put("type", "poison");
-        data.put("content", response);
-        
-        return AgentResult.success(response, data);
-    }
-    
-    /**
-     * 情绪曲线控制
-     */
-    private AgentResult controlEmotion(AgentInput input) {
-        String outline = (String) input.getParams().get("outline");
-        
-        String prompt = String.format("""
-                请为以下小说设计情绪曲线：
-                
-                大纲:
-                %s
-                
-                需要输出：
-                1. 整体情绪走势（起伏节奏）
-                2. 关键情绪节点（燃、虐、甜、爽）
-                3. 情绪转换过渡
-                4. 读者情绪引导策略
-                
-                请以 Markdown 格式输出，可包含简单图示。
-                """, outline);
-        
-        String response = callLlm(prompt);
-        
-        Map<String, Object> data = new HashMap<>();
-        data.put("type", "emotion");
-        data.put("content", response);
-        
-        return AgentResult.success(response, data);
-    }
-    
-    /**
-     * 新版接口（AgentContext）
-     */
-    @Override
-    protected AgentResult doExecute(AgentContext ctx) throws Exception {
-        String subTask = getSubTask(ctx, "golden3");
-        
-        return switch (subTask) {
-            case "golden3" -> designGolden3(ctx);
-            case "rhythm" -> planRhythm(ctx);
-            case "poison" -> avoidPoison(ctx);
-            case "emotion" -> controlEmotion(ctx);
-            case "analysis" -> analyzeWriterBlock(ctx);
-            default -> AgentResult.failure("未知的子任务: " + subTask);
-        };
-    }
 
-    private AgentResult designGolden3(AgentContext ctx) {
-        String outline = getParam(ctx, "outline", "");
-        String genre = getParam(ctx, "genre", "");
-        String prompt = String.format("""
-                请为以下小说设计黄金三章：
-                
-                小说类型: %s
-                大纲:
-                %s
-                
-                黄金三章要求：
-                1. 第一章：快速引入主角，展示核心冲突，设置悬念
-                2. 第二章：展现主角特殊性，制造第一个爽点
-                3. 第三章：扩大冲突，展示世界观，留下钩子
-                
+                开篇设计原则（非黄金三章套路）：
+                1. 第一章：矛盾切入
+                   - 直接切入核心冲突的某个切面
+                   - 通过具体场景暗示更大的世界观
+                   - 用细节而非说明展示角色特质
+                   - 结尾留下信息缺口，驱动阅读
+
+                2. 第二章：信息展开
+                   - 通过角色行动自然展开世界观
+                   - 引入关键配角，建立关系张力
+                   - 展示角色的决策模式和价值观
+                   - 埋设第一个伏笔
+
+                3. 第三章：冲突升级
+                   - 核心矛盾的第一次正面碰撞
+                   - 角色面临真正的选择（有代价的选择）
+                   - 展示故事的独特视角/主题
+                   - 建立长线悬念
+
                 需要输出：
-                - 每章核心事件
-                - 爽点设计
-                - 悬念设置
-                - 字数建议（每章 2000-3000 字）
-                
+                - 每章核心事件和叙事目的
+                - 信息密度控制（每章揭示什么、隐藏什么）
+                - 伏笔埋设点
+                - 悬念设计（信息缺口而非廉价钩子）
+
+                要求：
+                - 禁止"被轻视→展示实力"的套路
+                - 禁止突然出现的"金手指"
+                - 所有信息通过场景和行动自然展开
+                - 开篇即建立故事的独特调性
+
                 请以 Markdown 格式输出。
                 """, genre, outline);
+
         String response = callLlm(prompt);
-        return AgentResult.success(response, Map.of("type", "golden3", "content", response));
-    }
-    
-    private AgentResult planRhythm(AgentContext ctx) {
-        String outline = getParam(ctx, "outline", "");
-        String prompt = String.format("""
-                请为以下小说规划爽点节奏：
-                
-                大纲:
-                %s
-                
-                需要输出：
-                1. 爽点类型分布（打脸、升级、获宝、复仇等）
-                2. 爽点间隔（每 3-5 章一个小爽点，每 15-20 章一个大爽点）
-                3. 爽点强度曲线（逐步升级）
-                4. 高潮节点设计
-                
-                请以 Markdown 表格形式输出。
-                """, outline);
-        String response = callLlm(prompt);
-        return AgentResult.success(response, Map.of("type", "rhythm", "content", response));
-    }
-    
-    private AgentResult avoidPoison(AgentContext ctx) {
-        String chapterContent = getParam(ctx, "chapterContent", "");
-        String prompt = String.format("""
-                请检查以下章节内容是否存在毒点：
-                
-                章节内容:
-                %s
-                
-                常见毒点：
-                1. 主角过于圣母/懦弱
-                2. 女角色过度依赖男主
-                3. 逻辑硬伤
-                4. 节奏拖沓
-                5. 强行降智
-                6. 过度说教
-                
-                需要输出：
-                - 发现的毒点（如有）
-                - 毒点严重程度（1-10）
-                - 修改建议
-                
-                请以 Markdown 格式输出。
-                """, chapterContent);
-        String response = callLlm(prompt);
-        return AgentResult.success(response, Map.of("type", "poison", "content", response));
-    }
-    
-    private AgentResult controlEmotion(AgentContext ctx) {
-        String outline = getParam(ctx, "outline", "");
-        String prompt = String.format("""
-                请为以下小说设计情绪曲线：
-                
-                大纲:
-                %s
-                
-                需要输出：
-                1. 整体情绪走势（起伏节奏）
-                2. 关键情绪节点（燃、虐、甜、爽）
-                3. 情绪转换过渡
-                4. 读者情绪引导策略
-                
-                请以 Markdown 格式输出，可包含简单图示。
-                """, outline);
-        String response = callLlm(prompt);
-        return AgentResult.success(response, Map.of("type", "emotion", "content", response));
+        return AgentResult.success(response, Map.of("type", "hook", "content", response));
     }
 
     /**
-     * 卡文分析（使用 userInput 直接作为 prompt）
+     * 张力管理（多线并行的张力曲线）
      */
-    private AgentResult analyzeWriterBlock(AgentContext ctx) {
-        String response = callLlm(ctx.userInput());
+    private AgentResult manageTension(Map<String, Object> params, String userInput) {
+        String outline = getParam(params, "outline");
+
+        String prompt = String.format("""
+                请为以下小说设计张力管理方案（多线并行）：
+
+                大纲:
+                %s
+
+                需要输出：
+                1. 张力线识别
+                   - 主线张力（核心冲突的推进）
+                   - 角色张力（内在冲突的拉扯）
+                   - 关系张力（人际关系的博弈）
+                   - 主题张力（主题思想的碰撞）
+
+                2. 张力曲线设计
+                   - 各张力线的起伏节奏
+                   - 张力线的交汇点（多线共振）
+                   - 张力释放节点（冲突解决/转化）
+                   - 新张力生成点（解决旧问题带来新问题）
+
+                3. 节奏控制
+                   - 高张力段落（冲突集中爆发）
+                   - 低张力段落（角色反思/关系深化/信息铺垫）
+                   - 张弛有度的交替规律
+                   - 读者注意力的引导策略
+
+                4. 悬念管理
+                   - 短线悬念（1-3章解决）
+                   - 中线悬念（1卷内解决）
+                   - 长线悬念（跨卷解决）
+                   - 悬念的揭示节奏
+
+                要求：
+                - 张力来自角色动机冲突，非外部强加
+                - 禁止"为虐而虐"的廉价张力
+                - 张力释放必须有代价和后果
+                - 多线并行时注意信息密度控制
+
+                请以 Markdown 格式输出。
+                """, outline);
+
+        String response = callLlm(prompt);
+        return AgentResult.success(response, Map.of("type", "tension", "content", response));
+    }
+
+    /**
+     * 逻辑门禁（逻辑漏洞检测）
+     */
+    private AgentResult checkLogic(Map<String, Object> params, String userInput) {
+        String chapterContent = getParam(params, "chapterContent", userInput);
+
+        String prompt = String.format("""
+                请对以下内容进行逻辑门禁检查：
+
+                内容:
+                %s
+
+                检查维度：
+                1. 因果链完整性
+                   - 每个事件是否有前置原因？
+                   - 每个结果是否有合理铺垫？
+                   - 是否存在"无因之果"或"有因无果"？
+
+                2. 角色行为一致性
+                   - 角色决策是否符合其已建立的性格？
+                   - 角色是否突然降智或升智？
+                   - 角色信息掌握是否合理（是否知道不该知道的）？
+
+                3. 世界观规则一致性
+                   - 是否违反已建立的世界观规则？
+                   - 能力/资源使用是否有代价？
+                   - 是否存在"双标"（同样情况不同处理）？
+
+                4. 信息逻辑
+                   - 角色获取信息的方式是否合理？
+                   - 是否存在"上帝视角"泄露？
+                   - 信息差是否被合理利用？
+
+                5. 时间线逻辑
+                   - 事件顺序是否合理？
+                   - 时间跨度是否一致？
+                   - 是否有时间悖论？
+
+                需要输出：
+                - 发现的逻辑问题（如有）
+                - 问题严重程度（1-10）
+                - 问题类型（因果链/角色/世界观/信息/时间）
+                - 修改建议
+
+                请以 Markdown 格式输出。
+                """, chapterContent);
+
+        String response = callLlm(prompt);
+        return AgentResult.success(response, Map.of("type", "logic_gate", "content", response));
+    }
+
+    /**
+     * 深度设计（主题深度和情感共鸣）
+     */
+    private AgentResult designDepth(Map<String, Object> params, String userInput) {
+        String outline = getParam(params, "outline");
+
+        String prompt = String.format("""
+                请为以下小说设计主题深度和情感共鸣方案：
+
+                大纲:
+                %s
+
+                需要输出：
+                1. 主题层次设计
+                   - 表面主题（故事直接讲述的）
+                   - 深层主题（通过故事探讨的）
+                   - 哲学主题（故事背后的思想）
+                   - 主题在各章节的递进方式
+
+                2. 情感共鸣设计
+                   - 读者与角色的共情点（哪些经历能引发共鸣？）
+                   - 情感高潮节点（何时触动读者？）
+                   - 情感转化设计（从什么情感转化为什么情感？）
+                   - 留白与回味（哪些情感不说透？）
+
+                3. 思想碰撞设计
+                   - 不同角色的价值观碰撞
+                   - 没有标准答案的道德困境
+                   - 读者会思考的问题
+                   - 思想的递进和深化
+
+                4. 象征与隐喻
+                   - 核心意象（贯穿故事的象征）
+                   - 场景隐喻（用环境暗示主题）
+                   - 角色象征（角色代表的思想）
+                   - 意象的递进变化
+
+                要求：
+                - 主题通过故事自然呈现，非说教
+                - 情感共鸣基于真实人性，非刻意煽情
+                - 思想碰撞有多角度，非单一立场
+                - 象征隐喻自然融入，非生硬植入
+
+                请以 Markdown 格式输出。
+                """, outline);
+
+        String response = callLlm(prompt);
+        return AgentResult.success(response, Map.of("type", "depth", "content", response));
+    }
+
+    /**
+     * 卡文分析（基于因果链的分析）
+     */
+    private AgentResult analyzeWriterBlock(Map<String, Object> params, String userInput) {
+        String prompt = String.format("""
+                请分析以下卡文问题（基于因果链分析）：
+
+                问题描述:
+                %s
+
+                分析维度：
+                1. 因果链断裂检查
+                   - 当前剧情是否缺少前置铺垫？
+                   - 是否缺少合理的后续发展？
+                   - 是否需要补充中间环节？
+
+                2. 角色动机检查
+                   - 角色在当前情境下的动机是否清晰？
+                   - 角色是否有合理的行动选择？
+                   - 是否需要强化角色动机？
+
+                3. 冲突张力检查
+                   - 当前冲突是否还有挖掘空间？
+                   - 是否需要引入新的冲突维度？
+                   - 冲突解决是否有代价和后果？
+
+                4. 信息节奏检查
+                   - 是否信息揭示过快/过慢？
+                   - 是否需要调整信息密度？
+                   - 是否有未利用的信息差？
+
+                请提供：
+                - 卡文原因分析
+                - 3种可能的突破方向
+                - 每种方向的优缺点
+                - 推荐方案
+
+                请以 Markdown 格式输出。
+                """, userInput);
+
+        String response = callLlm(prompt);
         return AgentResult.success(response, Map.of("type", "analysis", "content", response));
     }
-    
+
     @Override
     protected String buildSystemPrompt() {
         return """
-                你是一个专业的网文小说剧情策划专家，精通爽点设计和节奏控制。
+                你是剧情架构师，专精因果链严谨、战略博弈深度的小说剧情设计。
 
-                【核心职责】
-                1. 设计吸引人的黄金三章
-                2. 规划合理的爽点节奏
-                3. 规避常见毒点
-                4. 控制读者情绪曲线
+                你的核心理念：
+                1. 因果链驱动：每个剧情转折必须有前置铺垫，禁止巧合推动
+                2. 战略博弈：角色决策基于信息差和利益考量，非情绪冲动
+                3. 张力管理：多线并行的张力曲线，张力来自角色动机冲突
+                4. 主题深度：通过故事探讨深刻主题，非简单爽感刺激
 
-                【黄金三章规则】
-                第一章：
-                - 前500字必须出现核心冲突或悬念
-                - 快速引入主角，展示特殊性（金手指/身份/能力）
-                - 结尾必须留钩子，让读者想看第二章
+                你的设计原则：
+                - 禁止"黄金三章"套路：开篇是高信息密度切入，非"被轻视→展示实力"
+                - 禁止"爽点模板"：冲突解决有代价和后果，非廉价爽感
+                - 禁止"毒点规避"思维：主动检测逻辑漏洞，非被动规避
+                - 禁止"情绪曲线"操控：张力来自角色动机冲突，非外部强加
 
-                第二章：
-                - 展现主角第一次小爽点（打脸/获宝/升级）
-                - 扩大世界观，引入关键配角
-                - 制造新的冲突或危机
+                你的核心能力：
+                1. 开篇钩子设计：高信息密度开篇，用悬念和矛盾吸引读者
+                2. 张力管理：多线并行的张力曲线，张弛有度的节奏控制
+                3. 逻辑门禁：因果链完整性、角色行为一致性、世界观规则一致性检测
+                4. 深度设计：主题层次、情感共鸣、思想碰撞、象征隐喻
 
-                第三章：
-                - 第一个小高潮（解决危机/击败敌人）
-                - 展示主角成长潜力
-                - 留下长线悬念，引导读者追读
-
-                【爽点设计模板】
-                - 打脸爽：被轻视→展示实力→震惊全场
-                - 升级爽：遇到瓶颈→获得机缘→突破境界
-                - 复仇爽：受辱→修炼→回来碾压
-                - 获宝爽：偶然发现→艰难获取→实力暴涨
-                - 情感爽：单恋→误会→表白→在一起
-
-                【毒点规避库】
-                严禁出现：
-                - 主角过于圣母/懦弱（该杀不杀）
-                - 女角色过度依赖男主（花瓶化）
-                - 逻辑硬伤（前后矛盾）
-                - 节奏拖沓（水字数）
-                - 强行降智（配角突然变蠢）
-                - 过度说教（破坏代入感）
-                - 憋屈无反击（被虐太久）
-                - 战力崩坏（升级太快/太慢）
-
-                【节奏控制】
-                - 每3-5章一个小爽点
-                - 每15-20章一个大高潮
-                - 每50章一个大转折
-                - 情绪曲线：压抑→爆发→短暂平静→新冲突
-
-                【输出要求】
+                输出要求：
                 - 使用 Markdown 格式
-                - 符合网文市场规律
-                - 注重读者体验
-                - 数据化、可视化呈现
-                - 给出具体章节建议和字数规划
+                - 所有设计必须有因果链支撑
+                - 张力来自角色动机冲突
+                - 主题通过故事自然呈现
                 """;
     }
 }

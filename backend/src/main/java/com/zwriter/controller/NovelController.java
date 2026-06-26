@@ -8,8 +8,13 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 
 import java.io.IOException;
+import java.nio.file.Files;
+import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 /**
  * 小说管理 API
@@ -17,6 +22,8 @@ import java.util.Map;
  * - POST /api/novels → 创建小说
  * - GET /api/novels/{name} → 获取小说信息
  * - DELETE /api/novels/{name} → 删除小说
+ * - GET /api/novels/{name}/chapters → 获取章节列表
+ * - GET /api/novels/{name}/chapters/{chapterNum} → 获取章节内容
  */
 @Slf4j
 @RestController
@@ -91,6 +98,91 @@ public class NovelController {
         } catch (IOException e) {
             log.error("[NovelController] 删除小说失败: {}", name, e);
             return ApiResponse.failure("删除小说失败: " + e.getMessage());
+        }
+    }
+
+    /**
+     * 获取章节列表
+     */
+    @GetMapping("/{name}/chapters")
+    public ApiResponse<List<Map<String, Object>>> listChapters(@PathVariable String name) {
+        try {
+            Workspace ws = workspaceManager.openNovel(name);
+            List<Map<String, Object>> chapters = new ArrayList<>();
+
+            // 扫描 chapters 目录
+            java.nio.file.Path chaptersDir = ws.getRoot().resolve("chapters");
+            if (Files.exists(chaptersDir) && Files.isDirectory(chaptersDir)) {
+                Pattern pattern = Pattern.compile("chapter-(\\d+)\\.md");
+                try (var stream = Files.list(chaptersDir)) {
+                    stream.filter(p -> pattern.matcher(p.getFileName().toString()).matches())
+                          .sorted()
+                          .forEach(p -> {
+                              try {
+                                  String content = Files.readString(p);
+                                  String filename = p.getFileName().toString();
+                                  Matcher matcher = pattern.matcher(filename);
+                                  if (matcher.matches()) {
+                                      int chapterNum = Integer.parseInt(matcher.group(1));
+                                      // 提取标题（第一行 # 开头）
+                                      String title = "";
+                                      String[] lines = content.split("\n");
+                                      if (lines.length > 0 && lines[0].startsWith("# ")) {
+                                          title = lines[0].substring(2).trim();
+                                      }
+                                      Map<String, Object> chapterInfo = new HashMap<>();
+                                      chapterInfo.put("chapterNumber", chapterNum);
+                                      chapterInfo.put("title", title);
+                                      chapterInfo.put("wordCount", content.length());
+                                      chapters.add(chapterInfo);
+                                  }
+                              } catch (IOException e) {
+                                  log.error("[NovelController] 读取章节失败: {}", p, e);
+                              }
+                          });
+                }
+            }
+
+            return ApiResponse.success(chapters);
+        } catch (IOException e) {
+            log.error("[NovelController] 获取章节列表失败: {}", name, e);
+            return ApiResponse.failure("小说不存在: " + name);
+        }
+    }
+
+    /**
+     * 获取章节内容
+     */
+    @GetMapping("/{name}/chapters/{chapterNum}")
+    public ApiResponse<Map<String, Object>> getChapter(
+            @PathVariable String name,
+            @PathVariable int chapterNum) {
+        try {
+            Workspace ws = workspaceManager.openNovel(name);
+            String content = ws.readChapter(chapterNum);
+
+            if (content == null || content.isEmpty()) {
+                return ApiResponse.failure("章节不存在: " + chapterNum);
+            }
+
+            // 提取标题
+            String title = "";
+            String[] lines = content.split("\n");
+            if (lines.length > 0 && lines[0].startsWith("# ")) {
+                title = lines[0].substring(2).trim();
+            }
+
+            Map<String, Object> chapterInfo = Map.of(
+                    "chapterNumber", chapterNum,
+                    "title", title,
+                    "content", content,
+                    "wordCount", content.length()
+            );
+
+            return ApiResponse.success(chapterInfo);
+        } catch (IOException e) {
+            log.error("[NovelController] 获取章节失败: {} chapter {}", name, chapterNum, e);
+            return ApiResponse.failure("读取章节失败: " + e.getMessage());
         }
     }
 

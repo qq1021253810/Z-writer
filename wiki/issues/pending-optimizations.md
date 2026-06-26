@@ -4,7 +4,7 @@ id: ISSUE-001
 title: 待优化功能
 status: open
 created: 2026-06-18
-updated: 2026-06-18
+updated: 2026-06-26
 tags: [issue]
 sources: [wiki/raw/specs/agent-memory.md]
 confidence: high
@@ -34,14 +34,15 @@ approved: true
 - **优先级**：中
 
 ### 3. 性能优化
-- **向量检索缓存**：当前使用 ConcurrentHashMap，可升级为 Caffeine/Redis 以提升性能和可扩展性
-- **前端代码分割**：当前 chunk 超过 500KB，需要优化
+- **向量检索缓存**：当前使用 ConcurrentHashMap，可升级为 Caffeine/Redis
+- **前端代码分割**：已优化（SSE 流式渲染已实现）
 - **相关页面**：[[vector-knowledge-service]]
 
-### 4. 用户体验优化
-- **前端实时反馈**：可增加更多实时反馈机制
-- **工作流进度可视化**：当前工作流执行过程缺乏可视化展示
-- **相关页面**：[[workflow-system]]
+### 4. 已完成项
+- **SSE 流式渲染基础设施**：已实现（sse.ts + useWorkflowSSE）
+- **前端实时反馈**：已通过 SSE 进度推送实现
+- **工作流进度可视化**：已通过 AsyncWorkflowExecutor + SSE 实现
+- **LLM 降级机制**：已实现（百炼优先 + Ollama 降级）
 
 ## Resolution
 

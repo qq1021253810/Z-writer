@@ -167,7 +167,42 @@ frontend/src/
 | `agentService` | execute | POST /agent/execute |
 | `dialogueGuideService` | generate | POST /dialogue-guide/generate |
 
-## UI 组件（shadcn/ui）
+## SSE 流式渲染基础设施
+
+**路径**: `frontend/src/services/sse.ts`
+
+### sse.ts（SSE 客户端封装）
+
+核心函数 `createSSE()` 和 `streamTokens()`：
+
+- **GET 模式**：使用原生 `EventSource`，参数通过 query string 传递
+- **POST 模式**：使用 `fetch + ReadableStream`，参数通过 JSON body 传递
+- **自动重连**：默认 3 次重连，间隔 3 秒
+- **事件类型分发**：`token`（文本流）、`progress`（进度）、`complete`（完成）、`error`（错误）
+- **简化版**：`streamTokens(url, params, onToken, onComplete, onError)` — 仅用于 Token 流式输出
+
+### useWorkflowSSE Hook
+
+专用于工作流 SSE 状态管理：
+
+```typescript
+interface UseWorkflowSSEReturn {
+  result: any;                    // 最终结果
+  progressLog: ProgressLog[];     // 进度日志
+  status: 'idle' | 'running' | 'completed' | 'error';
+  error: string | null;
+  isRunning: boolean;
+  currentStep: string | null;
+  submit(url, params): Promise<void>;  // 提交工作流
+  reset(): void;                       // 重置状态
+}
+```
+
+### ScrollArea 组件
+
+**路径**: `frontend/src/components/ui/scroll-area.tsx`
+
+基于 Radix UI 的滚动区域组件，用于对话流内容的自动滚动。
 
 | 组件 | 用途 |
 |------|------|
